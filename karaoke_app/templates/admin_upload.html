@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Importer - VoxPlayer Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-music"></i>
+                <span>VoxPlayer Admin</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin" class="nav-item">
+                    <i class="fas fa-th-large"></i> Tableau de bord
+                </a>
+                <a href="/admin/upload" class="nav-item active">
+                    <i class="fas fa-cloud-upload-alt"></i> Importer
+                </a>
+                <a href="/" class="nav-item" target="_blank">
+                    <i class="fas fa-play-circle"></i> Lecteur
+                </a>
+                <a href="/admin/logout" class="nav-item nav-logout">
+                    <i class="fas fa-sign-out-alt"></i> Déconnexion
+                </a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <header class="admin-header">
+                <h1>Importer une chanson</h1>
+                <a href="/admin" class="btn btn-outline-light">
+                    <i class="fas fa-arrow-left"></i> Retour
+                </a>
+            </header>
+
+            <div class="upload-card">
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <!-- Song Title & Artist -->
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="songTitle">Titre de la chanson</label>
+                            <input type="text" id="songTitle" placeholder="Détecté automatiquement" disabled>
+                        </div>
+                        <div class="form-group">
+                            <label for="artistName">Nom de l'artiste</label>
+                            <input type="text" id="artistName" name="artist" placeholder="Entrez le nom de l'artiste">
+                        </div>
+                    </div>
+
+                    <!-- Audio File -->
+                    <div class="form-group">
+                        <label>Fichier audio <span class="required">*</span></label>
+                        <div class="file-drop" id="audioDropZone">
+                            <i class="fas fa-music fa-2x"></i>
+                            <p>Déposez un fichier audio ou <span class="link">parcourir</span></p>
+                            <small>MP3, WAV, FLAC, M4A, OGG</small>
+                            <input type="file" id="audioFile" accept="audio/*" hidden>
+                        </div>
+                        <div class="file-selected" id="audioSelected" style="display:none;">
+                            <i class="fas fa-file-audio"></i>
+                            <span id="audioFileName"></span>
+                            <button type="button" class="btn-icon" onclick="clearAudio()"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Lyrics File -->
+                    <div class="form-group">
+                        <label>Fichier de paroles (SRT ou LRC)</label>
+                        <div class="file-drop file-drop-sm" id="srtDropZone">
+                            <i class="fas fa-closed-captioning"></i>
+                            <p>Déposez un fichier SRT/LRC ou <span class="link">parcourir</span></p>
+                            <input type="file" id="srtFile" accept=".srt,.lrc" hidden>
+                        </div>
+                        <div class="file-selected" id="srtSelected" style="display:none;">
+                            <i class="fas fa-file-alt"></i>
+                            <span id="srtFileName"></span>
+                            <button type="button" class="btn-icon" onclick="clearSRT()"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Cover Art -->
+                    <div class="form-group">
+                        <label>Pochette d'album</label>
+                        <div class="file-drop file-drop-sm" id="coverDropZone">
+                            <i class="fas fa-image"></i>
+                            <p>Déposez une image ou <span class="link">parcourir</span></p>
+                            <input type="file" id="coverFile" accept="image/*" hidden>
+                        </div>
+                        <div class="file-selected" id="coverSelected" style="display:none;">
+                            <i class="fas fa-image"></i>
+                            <span id="coverFileName"></span>
+                            <button type="button" class="btn-icon" onclick="clearCover()"><i class="fas fa-times"></i></button>
+                        </div>
+                    </div>
+
+                    <!-- Separation Options -->
+                    <div class="form-group">
+                        <label>Séparation audio</label>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoSeparate" checked>
+                                <span>Séparer automatiquement voix/instrumental après l'import (Demucs)</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div class="form-actions">
+                        <button type="submit" class="btn btn-accent btn-lg" id="submitBtn" disabled>
+                            <i class="fas fa-cloud-upload-alt"></i> Importer la chanson
+                        </button>
+                    </div>
+                </form>
+
+                <!-- Progress -->
+                <div class="upload-progress" id="uploadProgress" style="display:none;">
+                    <div class="progress-bar-container">
+                        <div class="progress-bar-fill" id="progressFill"></div>
+                    </div>
+                    <p id="progressText">Import en cours...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        let audioFileData = null;
+        let srtFileData = null;
+        let coverFileData = null;
+
+        // Audio drop zone
+        const audioDropZone = document.getElementById('audioDropZone');
+        const audioInput = document.getElementById('audioFile');
+        audioDropZone.addEventListener('click', () => audioInput.click());
+        audioDropZone.addEventListener('dragover', e => { e.preventDefault(); audioDropZone.classList.add('drag-over'); });
+        audioDropZone.addEventListener('dragleave', () => audioDropZone.classList.remove('drag-over'));
+        audioDropZone.addEventListener('drop', e => { e.preventDefault(); audioDropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setAudio(e.dataTransfer.files[0]); });
+        audioInput.addEventListener('change', e => { if (e.target.files[0]) setAudio(e.target.files[0]); });
+
+        // SRT drop zone
+        const srtDropZone = document.getElementById('srtDropZone');
+        const srtInput = document.getElementById('srtFile');
+        srtDropZone.addEventListener('click', () => srtInput.click());
+        srtDropZone.addEventListener('dragover', e => { e.preventDefault(); srtDropZone.classList.add('drag-over'); });
+        srtDropZone.addEventListener('dragleave', () => srtDropZone.classList.remove('drag-over'));
+        srtDropZone.addEventListener('drop', e => { e.preventDefault(); srtDropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setSRT(e.dataTransfer.files[0]); });
+        srtInput.addEventListener('change', e => { if (e.target.files[0]) setSRT(e.target.files[0]); });
+
+        // Cover drop zone
+        const coverDropZone = document.getElementById('coverDropZone');
+        const coverInput = document.getElementById('coverFile');
+        coverDropZone.addEventListener('click', () => coverInput.click());
+        coverDropZone.addEventListener('dragover', e => { e.preventDefault(); coverDropZone.classList.add('drag-over'); });
+        coverDropZone.addEventListener('dragleave', () => coverDropZone.classList.remove('drag-over'));
+        coverDropZone.addEventListener('drop', e => { e.preventDefault(); coverDropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setCover(e.dataTransfer.files[0]); });
+        coverInput.addEventListener('change', e => { if (e.target.files[0]) setCover(e.target.files[0]); });
+
+        function setAudio(file) {
+            audioFileData = file;
+            document.getElementById('audioFileName').textContent = file.name;
+            document.getElementById('audioSelected').style.display = 'flex';
+            audioDropZone.style.display = 'none';
+            document.getElementById('songTitle').value = file.name.replace(/\.[^/.]+$/, '');
+            document.getElementById('submitBtn').disabled = false;
+        }
+        function clearAudio() {
+            audioFileData = null;
+            audioInput.value = '';
+            document.getElementById('audioSelected').style.display = 'none';
+            audioDropZone.style.display = '';
+            document.getElementById('songTitle').value = '';
+            document.getElementById('submitBtn').disabled = true;
+        }
+        function setSRT(file) {
+            srtFileData = file;
+            document.getElementById('srtFileName').textContent = file.name;
+            document.getElementById('srtSelected').style.display = 'flex';
+            srtDropZone.style.display = 'none';
+        }
+        function clearSRT() {
+            srtFileData = null;
+            srtInput.value = '';
+            document.getElementById('srtSelected').style.display = 'none';
+            srtDropZone.style.display = '';
+        }
+        function setCover(file) {
+            coverFileData = file;
+            document.getElementById('coverFileName').textContent = file.name;
+            document.getElementById('coverSelected').style.display = 'flex';
+            coverDropZone.style.display = 'none';
+        }
+        function clearCover() {
+            coverFileData = null;
+            coverInput.value = '';
+            document.getElementById('coverSelected').style.display = 'none';
+            coverDropZone.style.display = '';
+        }
+
+        // Form submit
+        document.getElementById('uploadForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            if (!audioFileData) return;
+
+            const formData = new FormData();
+            formData.append('file', audioFileData);
+            formData.append('artist', document.getElementById('artistName').value || 'Artiste inconnu');
+            if (srtFileData) formData.append('lyrics_file', srtFileData);
+            if (coverFileData) formData.append('cover_file', coverFileData);
+
+            const progress = document.getElementById('uploadProgress');
+            const progressText = document.getElementById('progressText');
+            const progressFill = document.getElementById('progressFill');
+
+            progress.style.display = 'block';
+            document.getElementById('submitBtn').disabled = true;
+            progressFill.style.width = '30%';
+            progressText.textContent = 'Import de la chanson...';
+
+            try {
+                const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                const data = await resp.json();
+
+                if (!resp.ok) throw new Error(data.error);
+
+                progressFill.style.width = '60%';
+                progressText.textContent = 'Chanson importée !';
+
+                // Auto-separate if checked
+                if (document.getElementById('autoSeparate').checked) {
+                    progressText.textContent = 'Séparation audio en cours (cela peut prendre du temps)...';
+                    const sepResp = await fetch(`/api/separate/${data.song_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({})
+                    });
+
+                    if (sepResp.ok) {
+                        progressFill.style.width = '90%';
+                        progressText.textContent = 'Séparation terminée !';
+                    }
+                }
+
+                progressFill.style.width = '100%';
+                progressText.textContent = 'Terminé ! Redirection...';
+                setTimeout(() => { window.location.href = '/admin'; }, 1000);
+
+            } catch (err) {
+                progressText.textContent = 'Erreur : ' + err.message;
+                progressFill.style.background = '#e91429';
+                document.getElementById('submitBtn').disabled = false;
+            }
+        });
+    </script>
+</body>
+</html>

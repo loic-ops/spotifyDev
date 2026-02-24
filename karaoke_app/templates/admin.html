@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin - VoxPlayer</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-music"></i>
+                <span>VoxPlayer Admin</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin" class="nav-item active">
+                    <i class="fas fa-th-large"></i> Tableau de bord
+                </a>
+                <a href="/admin/upload" class="nav-item">
+                    <i class="fas fa-cloud-upload-alt"></i> Importer
+                </a>
+                <a href="/" class="nav-item" target="_blank">
+                    <i class="fas fa-play-circle"></i> Lecteur
+                </a>
+                <a href="/admin/logout" class="nav-item nav-logout">
+                    <i class="fas fa-sign-out-alt"></i> Déconnexion
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="admin-header">
+                <h1>Bibliothèque musicale</h1>
+                <a href="/admin/upload" class="btn btn-accent">
+                    <i class="fas fa-plus"></i> Ajouter
+                </a>
+            </header>
+
+            <div class="songs-table-wrapper">
+                <table class="songs-table" id="songsTable">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Titre</th>
+                            <th>Artiste</th>
+                            <th>Paroles</th>
+                            <th>Instrumental</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="songsBody">
+                        <tr>
+                            <td colspan="6" class="empty-state">
+                                <i class="fas fa-music"></i>
+                                <p>Aucune chanson. Importez votre première chanson !</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <!-- Edit Modal -->
+    <div class="modal-overlay" id="editModal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3>Modifier la chanson</h3>
+                <button class="btn-icon" onclick="closeEditModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="editSongId">
+                <div class="form-group">
+                    <label>Titre</label>
+                    <input type="text" id="editTitle" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Artiste</label>
+                    <input type="text" id="editArtist" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label>Remplacer les paroles (SRT ou LRC)</label>
+                    <div class="file-input-row">
+                        <input type="file" id="editLyricsFile" accept=".srt,.lrc">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" onclick="closeEditModal()">Annuler</button>
+                <button class="btn btn-accent" onclick="saveEdit()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        async function loadSongs() {
+            try {
+                const response = await fetch('/api/songs');
+                const songs = await response.json();
+                const tbody = document.getElementById('songsBody');
+
+                if (!songs.length) {
+                    tbody.innerHTML = `
+                        <tr><td colspan="6" class="empty-state">
+                            <i class="fas fa-music"></i>
+                            <p>Aucune chanson. Importez votre première chanson !</p>
+                        </td></tr>`;
+                    return;
+                }
+
+                tbody.innerHTML = songs.map((song, i) => `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td class="song-title-cell">
+                            <div class="song-title">${song.title}</div>
+                        </td>
+                        <td>${song.artist || 'Inconnu'}</td>
+                        <td>
+                            <span class="badge ${song.has_lyrics ? 'badge-ok' : 'badge-no'}">
+                                ${song.has_lyrics ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>'}
+                            </span>
+                        </td>
+                        <td>
+                            <span class="badge ${song.has_instrumental ? 'badge-ok' : 'badge-no'}">
+                                ${song.has_instrumental ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>'}
+                            </span>
+                        </td>
+                        <td class="actions-cell">
+                            <button class="btn-sm btn-outline" onclick="openEditModal('${song.id}', '${song.title.replace(/'/g, "\\'")}', '${(song.artist || '').replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i> Modifier</button>
+                            ${!song.has_lyrics ? `<button class="btn-sm btn-outline" onclick="uploadLyrics('${song.id}')"><i class="fas fa-file-alt"></i> Paroles</button>` : ''}
+                            ${!song.has_instrumental ? `<button class="btn-sm btn-outline" onclick="separateAudio('${song.id}')"><i class="fas fa-cut"></i> Séparer</button>` : ''}
+                            <button class="btn-sm btn-danger" onclick="deleteSong('${song.id}')"><i class="fas fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error('Error loading songs:', err);
+            }
+        }
+
+        // ─── Edit Modal ─────────────────────────────────────
+        function openEditModal(id, title, artist) {
+            document.getElementById('editSongId').value = id;
+            document.getElementById('editTitle').value = title;
+            document.getElementById('editArtist').value = artist;
+            document.getElementById('editLyricsFile').value = '';
+            document.getElementById('editModal').style.display = 'flex';
+        }
+
+        function closeEditModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        async function saveEdit() {
+            const id = document.getElementById('editSongId').value;
+            const title = document.getElementById('editTitle').value;
+            const artist = document.getElementById('editArtist').value;
+            const lyricsFile = document.getElementById('editLyricsFile').files[0];
+
+            // Update metadata
+            await fetch(`/api/songs/${id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ title, artist })
+            });
+
+            // Upload new lyrics if provided
+            if (lyricsFile) {
+                const fd = new FormData();
+                fd.append('lyrics_file', lyricsFile);
+                await fetch(`/api/upload-lyrics/${id}`, { method: 'POST', body: fd });
+            }
+
+            closeEditModal();
+            loadSongs();
+        }
+
+        // ─── Actions ────────────────────────────────────────
+        async function separateAudio(songId) {
+            if (!confirm('Lancer la séparation audio avec Demucs ? Cela peut prendre du temps.')) return;
+            try {
+                const resp = await fetch(`/api/separate/${songId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({})
+                });
+                const data = await resp.json();
+                alert(resp.ok ? 'Séparation terminée !' : data.error);
+                loadSongs();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        function uploadLyrics(songId) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.srt,.lrc';
+            input.onchange = async (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+                const fd = new FormData();
+                fd.append('lyrics_file', file);
+                try {
+                    const resp = await fetch(`/api/upload-lyrics/${songId}`, {
+                        method: 'POST', body: fd
+                    });
+                    const data = await resp.json();
+                    alert(resp.ok ? 'Paroles importées !' : data.error);
+                    loadSongs();
+                } catch (err) {
+                    alert('Error: ' + err.message);
+                }
+            };
+            input.click();
+        }
+
+        async function deleteSong(songId) {
+            if (!confirm('Supprimer cette chanson définitivement ?')) return;
+            try {
+                const resp = await fetch(`/api/songs/${songId}`, { method: 'DELETE' });
+                const data = await resp.json();
+                alert(resp.ok ? 'Chanson supprimée.' : data.error);
+                loadSongs();
+            } catch (err) {
+                alert('Error: ' + err.message);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadSongs);
+    </script>
+</body>
+</html>

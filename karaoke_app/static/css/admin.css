@@ -1,0 +1,561 @@
+/* ─── VoxPlayer Admin Interface (Light Theme) ──────────────────────────── */
+
+:root {
+    --bg-dark: #f5f5f7;
+    --bg-card: #ffffff;
+    --bg-input: #f0f0f5;
+    --bg-hover: #e8e8ed;
+    --accent: #1DB954;
+    --accent-hover: #1ed760;
+    --text: #1d1d1f;
+    --text-muted: #6e6e73;
+    --text-dim: #86868b;
+    --danger: #e91429;
+    --radius: 8px;
+    --sidebar-w: 220px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background: var(--bg-dark);
+    color: var(--text);
+    min-height: 100vh;
+}
+
+/* ─── Layout ─────────────────────────────────────────────────────────────── */
+
+.admin-layout {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* Sidebar */
+.sidebar {
+    width: var(--sidebar-w);
+    background: var(--bg-card);
+    padding: 24px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 32px;
+    border-right: 1px solid #e5e5ea;
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+}
+
+.sidebar-logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 18px;
+    font-weight: 700;
+    padding: 0 8px;
+}
+
+.sidebar-logo i {
+    color: var(--accent);
+    font-size: 22px;
+}
+
+.sidebar-nav {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+}
+
+.nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border-radius: var(--radius);
+    color: var(--text-muted);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.2s;
+}
+
+.nav-item:hover {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+.nav-item.active {
+    background: var(--bg-hover);
+    color: var(--text);
+}
+
+.nav-item.nav-logout {
+    margin-top: auto;
+    color: var(--text-dim);
+}
+
+/* Main Content */
+.main-content {
+    flex: 1;
+    margin-left: var(--sidebar-w);
+    padding: 32px 40px;
+}
+
+.admin-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+}
+
+.admin-header h1 {
+    font-size: 28px;
+    font-weight: 700;
+}
+
+/* ─── Buttons ────────────────────────────────────────────────────────────── */
+
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 50px;
+    font-size: 14px;
+    font-weight: 600;
+    text-decoration: none;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-accent {
+    background: var(--accent);
+    color: #fff;
+}
+
+.btn-accent:hover {
+    background: var(--accent-hover);
+    transform: scale(1.02);
+}
+
+.btn-outline-light {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid #d1d1d6;
+}
+
+.btn-outline-light:hover {
+    border-color: var(--text);
+    color: var(--text);
+}
+
+.btn-lg {
+    padding: 14px 32px;
+    font-size: 16px;
+}
+
+.btn-sm {
+    padding: 6px 14px;
+    font-size: 12px;
+    border-radius: 20px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.2s;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--text-muted);
+    border: 1px solid #d1d1d6;
+}
+
+.btn-outline:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+.btn-danger {
+    background: transparent;
+    color: var(--text-dim);
+    border: 1px solid transparent;
+}
+
+.btn-danger:hover {
+    color: var(--danger);
+    border-color: var(--danger);
+}
+
+.btn-icon {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    cursor: pointer;
+    padding: 4px;
+    font-size: 14px;
+    transition: color 0.2s;
+}
+
+.btn-icon:hover {
+    color: var(--danger);
+}
+
+/* ─── Songs Table ────────────────────────────────────────────────────────── */
+
+.songs-table-wrapper {
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.songs-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.songs-table thead th {
+    text-align: left;
+    padding: 14px 20px;
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-dim);
+    border-bottom: 1px solid #e5e5ea;
+}
+
+.songs-table tbody td {
+    padding: 14px 20px;
+    font-size: 14px;
+    border-bottom: 1px solid #f0f0f5;
+}
+
+.songs-table tbody tr:hover {
+    background: var(--bg-hover);
+}
+
+.songs-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.song-title-cell .song-title {
+    font-weight: 600;
+}
+
+.actions-cell {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 60px 20px !important;
+    color: var(--text-dim);
+}
+
+.empty-state i {
+    font-size: 40px;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.3;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    font-size: 12px;
+}
+
+.badge-ok {
+    background: rgba(29, 185, 84, 0.12);
+    color: var(--accent);
+}
+
+.badge-no {
+    background: rgba(0, 0, 0, 0.04);
+    color: var(--text-dim);
+}
+
+/* ─── Upload Card ────────────────────────────────────────────────────────── */
+
+.upload-card {
+    background: var(--bg-card);
+    border-radius: 12px;
+    padding: 40px;
+    max-width: 640px;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 24px;
+}
+
+.form-group {
+    margin-bottom: 24px;
+}
+
+.form-group label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-muted);
+    margin-bottom: 8px;
+}
+
+.form-group label .required {
+    color: var(--danger);
+}
+
+.form-group input[type="text"],
+.form-select {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border: 1px solid #d1d1d6;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-group input[type="text"]:focus,
+.form-select:focus {
+    border-color: var(--accent);
+}
+
+/* File drop zones */
+.file-drop {
+    border: 2px dashed #c7c7cc;
+    border-radius: var(--radius);
+    padding: 40px 20px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-drop-sm {
+    padding: 24px 20px;
+}
+
+.file-drop:hover,
+.file-drop.drag-over {
+    border-color: var(--accent);
+    background: rgba(29, 185, 84, 0.04);
+}
+
+.file-drop i {
+    color: var(--accent);
+    margin-bottom: 8px;
+}
+
+.file-drop p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+.file-drop small {
+    font-size: 12px;
+    color: var(--text-dim);
+}
+
+.file-drop .link {
+    color: var(--accent);
+    text-decoration: underline;
+}
+
+.file-selected {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border-radius: var(--radius);
+    font-size: 14px;
+}
+
+.file-selected i {
+    color: var(--accent);
+}
+
+.file-selected span {
+    flex: 1;
+}
+
+/* Checkbox */
+.checkbox-group {
+    margin-bottom: 12px;
+}
+
+.checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--text-muted);
+    cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+    accent-color: var(--accent);
+    width: 16px;
+    height: 16px;
+}
+
+/* Form actions */
+.form-actions {
+    margin-top: 32px;
+}
+
+/* Upload progress */
+.upload-progress {
+    margin-top: 24px;
+}
+
+.progress-bar-container {
+    height: 6px;
+    background: var(--bg-input);
+    border-radius: 3px;
+    overflow: hidden;
+    margin-bottom: 12px;
+}
+
+.progress-bar-fill {
+    height: 100%;
+    background: var(--accent);
+    border-radius: 3px;
+    width: 0%;
+    transition: width 0.4s ease;
+}
+
+.upload-progress p {
+    font-size: 14px;
+    color: var(--text-muted);
+}
+
+/* ─── Modal ──────────────────────────────────────────────────────────────── */
+
+.modal-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    backdrop-filter: blur(4px);
+}
+
+.modal {
+    background: var(--bg-card);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 480px;
+    margin: 20px;
+    overflow: hidden;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.15);
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 20px 24px;
+    border-bottom: 1px solid #e5e5ea;
+}
+
+.modal-header h3 {
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.modal-body {
+    padding: 24px;
+}
+
+.modal-body .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-body .form-group:last-child {
+    margin-bottom: 0;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    padding: 16px 24px;
+    border-top: 1px solid #e5e5ea;
+}
+
+.form-input {
+    width: 100%;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border: 1px solid #d1d1d6;
+    border-radius: var(--radius);
+    color: var(--text);
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.form-input:focus {
+    border-color: var(--accent);
+}
+
+.file-input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.file-input-row input[type="file"] {
+    font-size: 13px;
+    color: var(--text-muted);
+}
+
+.file-input-row input[type="file"]::file-selector-button {
+    padding: 8px 16px;
+    background: var(--bg-input);
+    border: 1px solid #d1d1d6;
+    border-radius: 6px;
+    color: var(--text);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.file-input-row input[type="file"]::file-selector-button:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+}
+
+/* ─── Responsive ─────────────────────────────────────────────────────────── */
+
+@media (max-width: 768px) {
+    .sidebar {
+        display: none;
+    }
+    .main-content {
+        margin-left: 0;
+        padding: 20px;
+    }
+    .form-row {
+        grid-template-columns: 1fr;
+    }
+    .actions-cell {
+        flex-wrap: wrap;
+    }
+}

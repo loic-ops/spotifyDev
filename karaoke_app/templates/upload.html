@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload Song - Karaoke</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1><i class="fas fa-microphone"></i> Karaoke System</h1>
+            <nav>
+                <a href="/" class="btn"><i class="fas fa-home"></i> Player</a>
+            </nav>
+        </header>
+
+        <!-- Upload Section -->
+        <section class="upload-section">
+            <h2>Upload a Song</h2>
+            <p class="description">Upload your song to separate vocals from instrumentals and create karaoke tracks.</p>
+            
+            <!-- Upload Form -->
+            <div class="upload-form">
+                <div class="file-drop-area" id="dropZone">
+                    <i class="fas fa-cloud-upload-alt"></i>
+                    <p>Drag & drop your audio file here</p>
+                    <p class="or-text">or</p>
+                    <input type="file" id="fileInput" accept="audio/*" hidden>
+                    <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                        <i class="fas fa-folder-open"></i> Browse Files
+                    </button>
+                    <p class="file-info">Supported: MP3, WAV, FLAC, M4A, OGG</p>
+                </div>
+                
+                <!-- Selected File -->
+                <div class="selected-file" id="selectedFile" style="display: none;">
+                    <i class="fas fa-music"></i>
+                    <span id="fileName">filename.mp3</span>
+                    <button class="btn-remove" onclick="clearFile()"><i class="fas fa-times"></i></button>
+                </div>
+
+                <!-- Upload Button -->
+                <button class="btn btn-large btn-success" id="uploadBtn" onclick="uploadFile()" disabled>
+                    <i class="fas fa-upload"></i> Upload & Process
+                </button>
+            </div>
+
+            <!-- Processing Options -->
+            <div class="processing-options" id="processingOptions" style="display: none;">
+                <h3>Processing Options</h3>
+                
+                <div class="option-group">
+                    <label>Audio Separation Method:</label>
+                    <select id="separationMethod">
+                        <option value="spleeter">Spleeter (Faster)</option>
+                        <option value="demucs">Demucs (Better Quality)</option>
+                    </select>
+                </div>
+                
+                <div class="option-group">
+                    <label>Whisper Model:</label>
+                    <select id="whisperModel">
+                        <option value="tiny">Tiny (Fastest)</option>
+                        <option value="base" selected>Base (Recommended)</option>
+                        <option value="small">Small (Better Accuracy)</option>
+                        <option value="medium">Medium (High Accuracy)</option>
+                    </select>
+                </div>
+
+                <button class="btn btn-primary" id="processBtn" onclick="startProcessing()">
+                    <i class="fas fa-cogs"></i> Start Processing
+                </button>
+            </div>
+
+            <!-- Processing Progress -->
+            <div class="processing-progress" id="processingProgress" style="display: none;">
+                <h3>Processing Your Song</h3>
+                
+                <div class="progress-steps">
+                    <div class="step" id="stepUpload">
+                        <div class="step-icon"><i class="fas fa-upload"></i></div>
+                        <div class="step-label">Uploading</div>
+                        <div class="step-status">Pending</div>
+                    </div>
+                    
+                    <div class="step" id="stepSeparate">
+                        <div class="step-icon"><i class="fas fa-cut"></i></div>
+                        <div class="step-label">Separating Audio</div>
+                        <div class="step-status">Pending</div>
+                    </div>
+                    
+                    <div class="step" id="stepTranscribe">
+                        <div class="step-icon"><i class="fas fa-file-alt"></i></div>
+                        <div class="step-label">Transcribing Lyrics</div>
+                        <div class="step-status">Pending</div>
+                    </div>
+                    
+                    <div class="step" id="stepComplete">
+                        <div class="step-icon"><i class="fas fa-check"></i></div>
+                        <div class="step-label">Complete</div>
+                        <div class="step-status">Pending</div>
+                    </div>
+                </div>
+                
+                <div class="current-status">
+                    <div class="spinner"></div>
+                    <p id="statusMessage">Preparing...</p>
+                </div>
+            </div>
+
+            <!-- Error Display -->
+            <div class="error-message" id="errorMessage" style="display: none;">
+                <i class="fas fa-exclamation-circle"></i>
+                <p id="errorText"></p>
+                <button onclick="resetUpload()">Try Again</button>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        let selectedFile = null;
+        let currentSongId = null;
+
+        // File Input Handling
+        const fileInput = document.getElementById('fileInput');
+        const dropZone = document.getElementById('dropZone');
+        
+        fileInput.addEventListener('change', handleFileSelect);
+        
+        // Drag and Drop
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+        
+        dropZone.addEventListener('dragleave', () => {
+            dropZone.classList.remove('drag-over');
+        });
+        
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            if (e.dataTransfer.files.length) {
+                handleFile(e.dataTransfer.files[0]);
+            }
+        });
+
+        function handleFileSelect(e) {
+            if (e.target.files.length) {
+                handleFile(e.target.files[0]);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.type.startsWith('audio/')) {
+                showError('Please select an audio file');
+                return;
+            }
+            
+            selectedFile = file;
+            document.getElementById('fileName').textContent = file.name;
+            document.getElementById('selectedFile').style.display = 'flex';
+            document.getElementById('uploadBtn').disabled = false;
+        }
+
+        function clearFile() {
+            selectedFile = null;
+            fileInput.value = '';
+            document.getElementById('selectedFile').style.display = 'none';
+            document.getElementById('uploadBtn').disabled = true;
+        }
+
+        // Upload File
+        async function uploadFile() {
+            if (!selectedFile) return;
+            
+            const formData = new FormData();
+            formData.append('file', selectedFile);
+            
+            updateStep('stepUpload', 'processing');
+            updateStatus('Uploading file...');
+            
+            try {
+                const response = await fetch('/api/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    currentSongId = data.song_id;
+                    updateStep('stepUpload', 'complete');
+                    document.getElementById('processingOptions').style.display = 'block';
+                    updateStatus('File uploaded! Choose processing options and start.');
+                } else {
+                    throw new Error(data.error || 'Upload failed');
+                }
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        // Start Processing
+        async function startProcessing() {
+            if (!currentSongId) return;
+            
+            const method = document.getElementById('separationMethod').value;
+            
+            document.getElementById('processingOptions').style.display = 'none';
+            document.getElementById('processingProgress').style.display = 'block';
+            
+            // Audio Separation
+            updateStep('stepSeparate', 'processing');
+            updateStatus('Separating vocals from instrumental...');
+            
+            try {
+                const sepResponse = await fetch(`/api/separate/${currentSongId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ method: method })
+                });
+                
+                const sepData = await sepResponse.json();
+                
+                if (!sepResponse.ok) {
+                    throw new Error(sepData.error || 'Separation failed');
+                }
+                
+                updateStep('stepSeparate', 'complete');
+                
+                // Transcription
+                updateStep('stepTranscribe', 'processing');
+                updateStatus('Transcribing lyrics with Whisper...');
+                
+                const transResponse = await fetch(`/api/transcribe/${currentSongId}`, {
+                    method: 'POST'
+                });
+                
+                const transData = await transResponse.json();
+                
+                if (!transResponse.ok) {
+                    throw new Error(transData.error || 'Transcription failed');
+                }
+                
+                updateStep('stepTranscribe', 'complete');
+                
+                // Create karaoke track with vocal reduction
+                updateStatus('Creating karaoke track...');
+                
+                const karaokeResponse = await fetch(`/api/vocal-reduce/${currentSongId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ level: 0.5 })
+                });
+                
+                updateStep('stepComplete', 'complete');
+                updateStatus('All done! Redirecting to player...');
+                
+                // Redirect to player
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 1500);
+                
+            } catch (error) {
+                showError(error.message);
+            }
+        }
+
+        function updateStep(stepId, status) {
+            const step = document.getElementById(stepId);
+            step.className = `step ${status}`;
+            
+            const statusEl = step.querySelector('.step-status');
+            if (status === 'processing') {
+                statusEl.textContent = 'In Progress';
+            } else if (status === 'complete') {
+                statusEl.textContent = 'Done';
+            } else {
+                statusEl.textContent = 'Pending';
+            }
+        }
+
+        function updateStatus(message) {
+            document.getElementById('statusMessage').textContent = message;
+        }
+
+        function showError(message) {
+            document.getElementById('errorText').textContent = message;
+            document.getElementById('errorMessage').style.display = 'block';
+            document.getElementById('processingOptions').style.display = 'none';
+            document.getElementById('processingProgress').style.display = 'none';
+        }
+
+        function resetUpload() {
+            clearFile();
+            currentSongId = null;
+            document.getElementById('errorMessage').style.display = 'none';
+            document.getElementById('processingOptions').style.display = 'none';
+            document.getElementById('processingProgress').style.display = 'none';
+            
+            // Reset steps
+            ['stepUpload', 'stepSeparate', 'stepTranscribe', 'stepComplete'].forEach(id => {
+                const step = document.getElementById(id);
+                step.className = 'step';
+                step.querySelector('.step-status').textContent = 'Pending';
+            });
+        }
+    </script>
+</body>
+</html>
+

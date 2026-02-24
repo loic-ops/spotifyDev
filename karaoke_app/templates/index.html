@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Karaoke Player</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header>
+            <h1><i class="fas fa-microphone"></i> Karaoke Player</h1>
+            <nav>
+                <a href="/upload" class="btn"><i class="fas fa-upload"></i> Upload Song</a>
+            </nav>
+        </header>
+
+        <!-- Song Selection -->
+        <section class="song-selection">
+            <h2>Select a Song</h2>
+            <select id="songSelect">
+                <option value="">-- Choose a song --</option>
+            </select>
+        </section>
+
+        <!-- Player Section -->
+        <section class="player-section" id="playerSection" style="display: none;">
+            <!-- Song Info -->
+            <div class="song-info">
+                <h2 id="currentSongTitle">Song Title</h2>
+                <p id="songStatus">Ready to play</p>
+            </div>
+
+            <!-- Lyrics Display -->
+            <div class="lyrics-container">
+                <div class="lyrics-display" id="lyricsDisplay">
+                    <div class="lyrics-content" id="lyricsContent">
+                        <!-- Lyrics will be inserted here -->
+                        <p class="placeholder">No lyrics available</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Audio Controls -->
+            <div class="audio-controls">
+                <!-- Track Selection -->
+                <div class="track-selection">
+                    <label>Audio Source:</label>
+                    <select id="trackType">
+                        <option value="karaoke">Karaoke (Reduced Vocals)</option>
+                        <option value="instrumental">Instrumental Only</option>
+                        <option value="original">Original (With Vocals)</option>
+                    </select>
+                </div>
+
+                <!-- Vocal Reduction Control -->
+                <div class="vocal-control" id="vocalControl">
+                    <label><i class="fas fa-volume-mute"></i> Vocal Reduction:</label>
+                    <input type="range" id="vocalReduction" min="0" max="100" value="50">
+                    <span id="vocalLevel">50%</span>
+                </div>
+
+                <!-- Progress Bar -->
+                <div class="progress-container">
+                    <span id="currentTime">0:00</span>
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                        <div class="progress-handle" id="progressHandle"></div>
+                    </div>
+                    <span id="totalTime">0:00</span>
+                </div>
+
+                <!-- Playback Controls -->
+                <div class="playback-controls">
+                    <button class="control-btn" id="prevBtn" title="Previous">
+                        <i class="fas fa-backward"></i>
+                    </button>
+                    <button class="control-btn play-btn" id="playBtn" title="Play">
+                        <i class="fas fa-play"></i>
+                    </button>
+                    <button class="control-btn" id="nextBtn" title="Next">
+                        <i class="fas fa-forward"></i>
+                    </button>
+                </div>
+
+                <!-- Volume Control -->
+                <div class="volume-control">
+                    <i class="fas fa-volume-up"></i>
+                    <input type="range" id="volumeSlider" min="0" max="100" value="80">
+                    <span id="volumeLevel">80%</span>
+                </div>
+
+                <!-- Audio Element (Hidden) -->
+                <audio id="audioPlayer"></audio>
+            </div>
+        </section>
+
+        <!-- Processing Status -->
+        <div class="processing-status" id="processingStatus" style="display: none;">
+            <div class="spinner"></div>
+            <p id="statusText">Processing...</p>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/player.js') }}"></script>
+</body>
+</html>
+
+jet
