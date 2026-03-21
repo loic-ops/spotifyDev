@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>VoxPlayer</title>
+    <title>KaraoKing</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/player.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -13,27 +13,79 @@
     <div class="app">
         <!-- Top Bar -->
         <div class="top-bar">
-            <button class="btn-icon" id="backBtn" title="Liste des chansons">
+            <button class="btn-icon" id="backBtn" title="Accueil">
                 <i class="fas fa-chevron-down"></i>
             </button>
             <div class="top-bar-title">
-                <span class="now-playing-label" id="nowPlayingLabel">Choisir une chanson</span>
+                <span class="now-playing-label" id="nowPlayingLabel">KaraoKing</span>
             </div>
-            <a href="/admin" class="btn-icon" title="Administration">
-                <i class="fas fa-cog"></i>
-            </a>
+            <div class="top-bar-actions">
+                <a href="/library" class="btn-icon" title="Bibliotheque">
+                    <i class="fas fa-list"></i>
+                </a>
+                <a href="/admin" class="btn-icon" title="Administration">
+                    <i class="fas fa-cog"></i>
+                </a>
+            </div>
         </div>
 
-        <!-- Song List View -->
+        <!-- Song List View (HOME) -->
         <div class="song-list-view" id="songListView">
-            <h2>Votre bibliothèque</h2>
-            <div class="song-list" id="songList">
-                <div class="empty-library">
-                    <i class="fas fa-music"></i>
-                    <p>Aucune chanson disponible</p>
-                    <a href="/admin/upload" class="btn-accent-sm">Ajouter une chanson</a>
+
+            <!-- Hero Section -->
+            <div class="hero-section" id="heroSection">
+                <div class="hero-content">
+                    <div class="hero-icon-row">
+                        <span class="hero-icon"><i class="fas fa-microphone-alt"></i></span>
+                        <span class="hero-icon hero-icon-delay"><i class="fas fa-music"></i></span>
+                        <span class="hero-icon hero-icon-delay2"><i class="fas fa-headphones"></i></span>
+                    </div>
+                    <h1 class="hero-title">Bienvenue sur <span class="hero-accent">KaraoKing</span></h1>
+                    <p class="hero-subtitle">Choisissez une chanson et lancez le karaoke</p>
                 </div>
             </div>
+
+            <!-- Search -->
+            <div class="search-bar-wrap" id="searchBarWrap" style="display:none;">
+                <div class="search-bar">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher une chanson ou un artiste...">
+                    <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- Stats bar -->
+            <div class="stats-bar" id="statsBar" style="display:none;">
+                <div class="stat-chip"><i class="fas fa-compact-disc"></i> <span id="statTotal">0</span> chansons</div>
+                <div class="stat-chip"><i class="fas fa-star"></i> <span id="statKaraoke">0</span> karaoke</div>
+                <div class="stat-chip"><i class="fas fa-align-left"></i> <span id="statLyrics">0</span> avec paroles</div>
+            </div>
+
+            <!-- Karaoke Ready Section -->
+            <div class="home-section" id="karaokeSection" style="display:none;">
+                <div class="section-header">
+                    <h2><i class="fas fa-star"></i> Prets pour le karaoke</h2>
+                    <span class="section-badge" id="karaokeBadge">0</span>
+                </div>
+                <div class="song-cards-scroll" id="karaokeCards"></div>
+            </div>
+
+            <!-- All Songs Section -->
+            <div class="home-section" id="allSongsSection">
+                <div class="section-header">
+                    <h2><i class="fas fa-music"></i> Toutes les chansons</h2>
+                </div>
+                <div class="song-grid" id="songList">
+                    <div class="empty-library">
+                        <div class="empty-icon-wrap">
+                            <i class="fas fa-record-vinyl"></i>
+                        </div>
+                        <h3>Aucune chanson disponible</h3>
+                        <p>Importez vos premieres chansons depuis l'interface admin</p>
+                    </div>
+                </div>
+            </div>
+
         </div>
 
         <!-- Now Playing View -->
@@ -60,11 +112,17 @@
                             <div class="lyrics-spacer"></div>
                         </div>
                     </div>
-                    <!-- Karaoke toggle floating bottom-right of lyrics -->
-                    <button class="karaoke-toggle" id="karaokeToggle" title="Réduction vocale" data-level="0">
-                        <i class="fas fa-microphone"></i>
-                        <span class="karaoke-level-badge" id="karaokeLevelBadge"></span>
-                    </button>
+                    <!-- Two independent volume sliders for each track -->
+                    <div class="track-sliders-container" id="trackSlidersContainer">
+                        <div class="track-slider">
+                            <i class="fas fa-microphone track-slider-icon"></i>
+                            <input type="range" id="vocalsSlider" min="0" max="100" value="100" class="slider-range vocal-range" title="Volume voix">
+                        </div>
+                        <div class="track-slider">
+                            <i class="fas fa-guitar track-slider-icon"></i>
+                            <input type="range" id="instrumentalSlider" min="0" max="100" value="100" class="slider-range instrumental-range" title="Volume instrumental">
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -87,9 +145,11 @@
                         <input type="range" id="volumeSlider" min="0" max="100" value="80" class="slider-range">
                     </div>
                     <div class="playback-btns">
-                        <button class="ctrl-btn" id="prevBtn"><i class="fas fa-backward-step"></i></button>
+                        <button class="ctrl-btn" id="prevSongBtn" title="Chanson precedente"><i class="fas fa-backward-step"></i></button>
+                        <button class="ctrl-btn ctrl-seek" id="seekBackBtn" title="Reculer 10s"><i class="fas fa-rotate-left"></i><span class="seek-label">10</span></button>
                         <button class="ctrl-btn ctrl-play" id="playBtn"><i class="fas fa-play" id="playIcon"></i></button>
-                        <button class="ctrl-btn" id="nextBtn"><i class="fas fa-forward-step"></i></button>
+                        <button class="ctrl-btn ctrl-seek" id="seekFwdBtn" title="Avancer 10s"><i class="fas fa-rotate-right"></i><span class="seek-label">10</span></button>
+                        <button class="ctrl-btn" id="nextSongBtn" title="Chanson suivante"><i class="fas fa-forward-step"></i></button>
                     </div>
                     <div class="spacer-right"></div>
                 </div>
@@ -97,7 +157,7 @@
         </div>
     </div>
 
-    <audio id="audioOriginal" preload="auto"></audio>
+    <audio id="audioVocals" preload="auto"></audio>
     <audio id="audioInstrumental" preload="auto"></audio>
 
     <script src="{{ url_for('static', filename='js/karaoke-player.js') }}"></script>

@@ -1,4 +1,4 @@
-/* ─── VoxPlayer Admin Interface (Light Theme) ──────────────────────────── */
+/* ─── KaraoKing Admin Interface (Light Theme) ──────────────────────────── */
 
 :root {
     --bg-dark: #f5f5f7;
@@ -157,13 +157,14 @@ body {
 }
 
 .btn-sm {
-    padding: 6px 14px;
+    padding: 5px 10px;
     font-size: 12px;
     border-radius: 20px;
     border: none;
     cursor: pointer;
     font-weight: 600;
     transition: all 0.2s;
+    white-space: nowrap;
 }
 
 .btn-outline {
@@ -214,22 +215,38 @@ body {
 .songs-table {
     width: 100%;
     border-collapse: collapse;
+    table-layout: auto;
 }
 
 .songs-table thead th {
     text-align: left;
-    padding: 14px 20px;
+    padding: 14px 16px;
     font-size: 12px;
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--text-dim);
     border-bottom: 1px solid #e5e5ea;
+    white-space: nowrap;
 }
 
+/* Column widths */
+.songs-table thead th:nth-child(1) { width: 36px; }       /* # */
+.songs-table thead th:nth-child(2) { }                     /* Titre */
+.songs-table thead th:nth-child(3) { width: 140px; }       /* Artiste */
+.songs-table thead th:nth-child(4) { width: 70px; text-align: center; }  /* Paroles */
+.songs-table thead th:nth-child(5) { width: 70px; text-align: center; }  /* Instrumental */
+.songs-table thead th:nth-child(6) { width: 1%; white-space: nowrap; }   /* Actions */
+
 .songs-table tbody td {
-    padding: 14px 20px;
+    padding: 12px 16px;
     font-size: 14px;
     border-bottom: 1px solid #f0f0f5;
+    vertical-align: middle;
+}
+
+.songs-table tbody td:nth-child(4),
+.songs-table tbody td:nth-child(5) {
+    text-align: center;
 }
 
 .songs-table tbody tr:hover {
@@ -242,11 +259,17 @@ body {
 
 .song-title-cell .song-title {
     font-weight: 600;
+    line-height: 1.4;
+    max-width: 280px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .actions-cell {
+    white-space: nowrap;
     display: flex;
-    gap: 8px;
+    gap: 6px;
     align-items: center;
 }
 
@@ -540,6 +563,228 @@ body {
 .file-input-row input[type="file"]::file-selector-button:hover {
     border-color: var(--accent);
     color: var(--accent);
+}
+
+/* ─── Lyrics Editor Modal ────────────────────────────────────────────────── */
+
+.modal-lyrics-editor {
+    max-width: 900px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.lyrics-editor-body {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    overflow: hidden;
+    padding: 20px 24px !important;
+}
+
+.lyrics-audio-controls {
+    flex-shrink: 0;
+}
+
+.lyrics-audio-bar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+    background: var(--bg-input);
+    border-radius: var(--radius);
+}
+
+.lyrics-audio-time {
+    font-size: 13px;
+    color: var(--text-muted);
+    font-variant-numeric: tabular-nums;
+    min-width: 100px;
+}
+
+.lyrics-audio-seek {
+    flex: 1;
+    height: 4px;
+    accent-color: var(--accent);
+    cursor: pointer;
+}
+
+.lyrics-table-wrapper {
+    flex: 1;
+    overflow-y: auto;
+    max-height: 50vh;
+    border: 1px solid #e5e5ea;
+    border-radius: var(--radius);
+}
+
+.lyrics-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.lyrics-table thead th {
+    position: sticky;
+    top: 0;
+    background: var(--bg-card);
+    padding: 10px 12px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-dim);
+    border-bottom: 1px solid #e5e5ea;
+    z-index: 1;
+}
+
+.lyrics-table tbody td {
+    padding: 6px 8px;
+    border-bottom: 1px solid #f0f0f5;
+    vertical-align: middle;
+}
+
+.lyrics-row {
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.lyrics-row:hover {
+    background: var(--bg-hover);
+}
+
+.lyrics-row-active {
+    background: rgba(29, 185, 84, 0.08) !important;
+}
+
+.lyrics-row-active td {
+    color: var(--accent);
+}
+
+.lyrics-row-num {
+    color: var(--text-dim);
+    font-size: 12px;
+    width: 36px;
+    text-align: center;
+}
+
+.lyrics-time-input {
+    width: 120px;
+    padding: 6px 8px;
+    background: var(--bg-input);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: 'SF Mono', Monaco, Consolas, monospace;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.lyrics-time-input:focus {
+    border-color: var(--accent);
+}
+
+.lyrics-text-input {
+    width: 100%;
+    padding: 6px 10px;
+    background: var(--bg-input);
+    border: 1px solid transparent;
+    border-radius: 4px;
+    font-size: 14px;
+    color: var(--text);
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.lyrics-text-input:focus {
+    border-color: var(--accent);
+    background: #fff;
+}
+
+.lyrics-row-actions {
+    display: flex;
+    gap: 4px;
+    width: 64px;
+}
+
+.lyrics-row-actions .btn-icon {
+    font-size: 16px;
+    padding: 4px;
+    color: var(--text-dim);
+}
+
+.lyrics-row-actions .btn-icon:first-child:hover {
+    color: var(--accent);
+}
+
+.lyrics-editor-actions-bottom {
+    flex-shrink: 0;
+    display: flex;
+    gap: 8px;
+}
+
+.btn-lyrics-edit {
+    color: var(--accent) !important;
+    border-color: var(--accent) !important;
+}
+
+/* ─── Download Dropdown ──────────────────────────────────────────────────── */
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    top: 100%;
+    margin-top: 4px;
+    background: var(--bg-card);
+    border: 1px solid #e5e5ea;
+    border-radius: var(--radius);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.12);
+    min-width: 160px;
+    z-index: 50;
+    overflow: hidden;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    font-size: 13px;
+    color: var(--text);
+    text-decoration: none;
+    transition: background 0.15s;
+}
+
+.dropdown-item:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+}
+
+.dropdown-item i {
+    width: 16px;
+    text-align: center;
+    color: var(--text-dim);
+}
+
+.dropdown-item:hover i {
+    color: var(--accent);
+}
+
+.btn-processing {
+    opacity: 0.7;
+    pointer-events: none;
+    cursor: not-allowed;
+}
+
+.btn-reseparate {
+    color: var(--text-dim) !important;
+    border-color: transparent !important;
+    font-size: 11px !important;
 }
 
 /* ─── Responsive ─────────────────────────────────────────────────────────── */

@@ -14,13 +14,16 @@ RUN apt-get update && apt-get install -y \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Install build tools
-RUN pip install --no-cache-dir --upgrade pip "setuptools<72" wheel
+# Install build tools (setuptools needed by openai-whisper build)
+RUN pip install --no-cache-dir --upgrade pip "setuptools<70" wheel
 
 # Copy requirements
 COPY requirements.txt .
 
-# Install all dependencies
+# Install openai-whisper first (needs setuptools/pkg_resources at build time)
+RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117
+
+# Install remaining dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application code

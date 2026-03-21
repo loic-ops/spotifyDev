@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bibliotheque - KaraoKing</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/player.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="bg-gradient"></div>
+
+    <div class="app">
+        <!-- Top Bar -->
+        <div class="top-bar">
+            <a href="/" class="btn-icon" title="Accueil">
+                <i class="fas fa-home"></i>
+            </a>
+            <div class="top-bar-title">
+                <span class="now-playing-label">Bibliotheque</span>
+            </div>
+            <div class="top-bar-actions">
+                <a href="/admin" class="btn-icon" title="Administration">
+                    <i class="fas fa-cog"></i>
+                </a>
+            </div>
+        </div>
+
+        <!-- Library Content -->
+        <div class="library-view">
+            <!-- Search -->
+            <div class="search-bar-wrap" id="searchBarWrap" style="display:none;">
+                <div class="search-bar">
+                    <i class="fas fa-search search-icon"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher une chanson ou un artiste...">
+                    <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
+                </div>
+            </div>
+
+            <!-- Song List -->
+            <div class="song-list" id="songList">
+                <div class="empty-library">
+                    <div class="empty-icon-wrap">
+                        <i class="fas fa-record-vinyl"></i>
+                    </div>
+                    <h3>Aucune chanson disponible</h3>
+                    <p>Importez vos premieres chansons depuis l'interface admin</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function esc(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function formatTitle(str) {
+            return str.replace(/_/g, ' ').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim();
+        }
+
+        async function loadLibrary() {
+            try {
+                const resp = await fetch('/api/songs');
+                const songs = await resp.json();
+                const list = document.getElementById('songList');
+                const searchWrap = document.getElementById('searchBarWrap');
+
+                if (!songs.length) return;
+
+                searchWrap.style.display = '';
+
+                list.innerHTML = songs.map((song, i) => {
+                    const isKaraoke = song.has_instrumental && song.has_lyrics;
+                    const hasLyrics = song.has_lyrics;
+
+                    return `
+                    <div class="song-list-row" data-id="${esc(song.id)}" data-title="${esc(song.title.toLowerCase())}" data-artist="${esc((song.artist || '').toLowerCase())}">
+                        <span class="song-list-num">${i + 1}</span>
+                        <div class="song-list-cover">
+                            ${song.has_cover
+                                ? `<img src="/api/cover/${esc(song.id)}" alt="">`
+                                : `<div class="song-list-cover-placeholder"><i class="fas fa-music"></i></div>`}
+                        </div>
+                        <div class="song-list-info">
+                            <div class="song-list-title">${esc(formatTitle(song.title))}</div>
+                            <div class="song-list-artist">${esc(song.artist || 'Artiste inconnu')}</div>
+                        </div>
+                        <div class="song-list-badges">
+                            ${isKaraoke ? '<span class="song-list-badge badge-karaoke"><i class="fas fa-microphone-alt"></i> Karaoke</span>' : ''}
+                            ${hasLyrics && !isKaraoke ? '<span class="song-list-badge badge-lyrics-only"><i class="fas fa-align-left"></i> Paroles</span>' : ''}
+                        </div>
+                    </div>`;
+                }).join('');
+
+                // Click to play -> redirect to player with song ID
+                list.querySelectorAll('.song-list-row').forEach(el => {
+                    el.addEventListener('click', () => {
+                        window.location.href = `/?play=${encodeURIComponent(el.dataset.id)}`;
+                    });
+                });
+
+                // Search
+                const input = document.getElementById('searchInput');
+                const clearBtn = document.getElementById('searchClear');
+
+                input.addEventListener('input', () => {
+                    const q = input.value.toLowerCase().trim();
+                    clearBtn.style.display = q ? '' : 'none';
+
+                    list.querySelectorAll('.song-list-row').forEach(el => {
+                        const match = !q || el.dataset.title.includes(q) || el.dataset.artist.includes(q);
+                        el.style.display = match ? '' : 'none';
+                    });
+                });
+
+                clearBtn.addEventListener('click', () => {
+                    input.value = '';
+                    input.dispatchEvent(new Event('input'));
+                    input.focus();
+                });
+
+            } catch (err) {
+                console.error('Failed to load library', err);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadLibrary);
+    </script>
+</body>
+</html>

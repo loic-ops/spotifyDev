@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Importer - VoxPlayer Admin</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Importer - KaraoKing Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -13,7 +14,7 @@
         <aside class="sidebar">
             <div class="sidebar-logo">
                 <i class="fas fa-music"></i>
-                <span>VoxPlayer Admin</span>
+                <span>KaraoKing Admin</span>
             </div>
             <nav class="sidebar-nav">
                 <a href="/admin" class="nav-item">
@@ -100,13 +101,19 @@
                         </div>
                     </div>
 
-                    <!-- Separation Options -->
+                    <!-- Separation & Transcription Options -->
                     <div class="form-group">
-                        <label>Séparation audio</label>
+                        <label>Options de traitement</label>
                         <div class="checkbox-group">
                             <label class="checkbox-label">
                                 <input type="checkbox" id="autoSeparate" checked>
-                                <span>Séparer automatiquement voix/instrumental après l'import (Demucs)</span>
+                                <span>Separer automatiquement voix/instrumental apres l'import (Demucs)</span>
+                            </label>
+                        </div>
+                        <div class="checkbox-group">
+                            <label class="checkbox-label">
+                                <input type="checkbox" id="autoTranscribe">
+                                <span>Transcrire automatiquement les paroles (Whisper) — seulement si pas de fichier de paroles fourni</span>
                             </label>
                         </div>
                     </div>
@@ -131,6 +138,9 @@
     </div>
 
     <script>
+        // ─── CSRF Token ────────────────────────────────────
+        let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
         let audioFileData = null;
         let srtFileData = null;
         let coverFileData = null;
@@ -213,6 +223,7 @@
             formData.append('artist', document.getElementById('artistName').value || 'Artiste inconnu');
             if (srtFileData) formData.append('lyrics_file', srtFileData);
             if (coverFileData) formData.append('cover_file', coverFileData);
+            formData.append('_csrf_token', csrfToken);
 
             const progress = document.getElementById('uploadProgress');
             const progressText = document.getElementById('progressText');
@@ -234,21 +245,41 @@
 
                 // Auto-separate if checked
                 if (document.getElementById('autoSeparate').checked) {
-                    progressText.textContent = 'Séparation audio en cours (cela peut prendre du temps)...';
+                    progressText.textContent = 'Separation audio en cours (cela peut prendre du temps)...';
                     const sepResp = await fetch(`/api/separate/${data.song_id}`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                         body: JSON.stringify({})
                     });
 
                     if (sepResp.ok) {
-                        progressFill.style.width = '90%';
-                        progressText.textContent = 'Séparation terminée !';
+                        progressFill.style.width = '80%';
+                        progressText.textContent = 'Separation terminee !';
+                    }
+                }
+
+                // Auto-transcribe if checked and no lyrics file provided
+                if (document.getElementById('autoTranscribe').checked && !srtFileData) {
+                    progressFill.style.width = '85%';
+                    progressText.textContent = 'Transcription des paroles en cours (Whisper)...';
+                    const transResp = await fetch(`/api/transcribe/${data.song_id}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                        body: JSON.stringify({ model: 'base' })
+                    });
+
+                    if (transResp.ok) {
+                        const transData = await transResp.json();
+                        progressFill.style.width = '95%';
+                        progressText.textContent = `Transcription terminee ! ${transData.segments} segments.`;
+                    } else {
+                        progressText.textContent = 'Transcription echouee, vous pourrez relancer depuis le tableau de bord.';
+                        await new Promise(r => setTimeout(r, 2000));
                     }
                 }
 
                 progressFill.style.width = '100%';
-                progressText.textContent = 'Terminé ! Redirection...';
+                progressText.textContent = 'Termine ! Redirection...';
                 setTimeout(() => { window.location.href = '/admin'; }, 1000);
 
             } catch (err) {

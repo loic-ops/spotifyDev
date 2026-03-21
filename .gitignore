@@ -1,0 +1,28 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment / secrets
+.env
+*.env
+.keys.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+
+# Node / Electron
+node_modules/
+dist/
+out/
+*.tgz
+
+# Docker
+docker-compose.override.yml
+
+# IDE
+.vscode/
+*.code-workspace
+.idea/

@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin - VoxPlayer</title>
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Admin - KaraoKing</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
@@ -12,7 +13,7 @@
         <aside class="sidebar">
             <div class="sidebar-logo">
                 <i class="fas fa-music"></i>
-                <span>VoxPlayer Admin</span>
+                <span>KaraoKing Admin</span>
             </div>
             <nav class="sidebar-nav">
                 <a href="/admin" class="nav-item active">
@@ -94,7 +95,65 @@
         </div>
     </div>
 
+    <!-- Lyrics Editor Modal -->
+    <div class="modal-overlay" id="lyricsEditorModal" style="display:none;">
+        <div class="modal modal-lyrics-editor">
+            <div class="modal-header">
+                <h3><i class="fas fa-align-left"></i> Editeur de paroles</h3>
+                <button class="btn-icon" onclick="closeLyricsEditor()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body lyrics-editor-body">
+                <input type="hidden" id="lyricsEditorSongId">
+
+                <!-- Audio player for preview -->
+                <div class="lyrics-audio-controls">
+                    <audio id="lyricsAudioPreview" preload="none"></audio>
+                    <div class="lyrics-audio-bar">
+                        <button class="btn-sm btn-outline" id="lyricsPlayPauseBtn" onclick="lyricsTogglePlayPause()">
+                            <i class="fas fa-play"></i>
+                        </button>
+                        <span class="lyrics-audio-time" id="lyricsAudioTime">00:00 / 00:00</span>
+                        <input type="range" class="lyrics-audio-seek" id="lyricsAudioSeek" min="0" max="100" value="0" step="0.1">
+                    </div>
+                </div>
+
+                <!-- Lyrics table -->
+                <div class="lyrics-table-wrapper">
+                    <table class="lyrics-table" id="lyricsTable">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Debut</th>
+                                <th>Fin</th>
+                                <th>Texte</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="lyricsTableBody">
+                        </tbody>
+                    </table>
+                </div>
+
+                <div class="lyrics-editor-actions-bottom">
+                    <button class="btn-sm btn-outline" onclick="lyricsAddRow()"><i class="fas fa-plus"></i> Ajouter une ligne</button>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" onclick="closeLyricsEditor()">Annuler</button>
+                <button class="btn btn-accent" onclick="saveLyricsEditor()"><i class="fas fa-save"></i> Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
     <script>
+        // ─── CSRF Token Management ─────────────────────────
+        let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+
+        function escapeAttr(str) {
+            if (!str) return '';
+            return str.replace(/&/g,'&amp;').replace(/'/g,'&#39;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
         async function loadSongs() {
             try {
                 const response = await fetch('/api/songs');
@@ -114,9 +173,9 @@
                     <tr>
                         <td>${i + 1}</td>
                         <td class="song-title-cell">
-                            <div class="song-title">${song.title}</div>
+                            <div class="song-title" title="${escapeAttr(song.title)}">${escapeHtml(formatTitle(song.title))}</div>
                         </td>
-                        <td>${song.artist || 'Inconnu'}</td>
+                        <td>${escapeHtml(song.artist || 'Inconnu')}</td>
                         <td>
                             <span class="badge ${song.has_lyrics ? 'badge-ok' : 'badge-no'}">
                                 ${song.has_lyrics ? '<i class="fas fa-check"></i>' : '<i class="fas fa-times"></i>'}
@@ -128,13 +187,38 @@
                             </span>
                         </td>
                         <td class="actions-cell">
-                            <button class="btn-sm btn-outline" onclick="openEditModal('${song.id}', '${song.title.replace(/'/g, "\\'")}', '${(song.artist || '').replace(/'/g, "\\'")}')"><i class="fas fa-pen"></i> Modifier</button>
-                            ${!song.has_lyrics ? `<button class="btn-sm btn-outline" onclick="uploadLyrics('${song.id}')"><i class="fas fa-file-alt"></i> Paroles</button>` : ''}
-                            ${!song.has_instrumental ? `<button class="btn-sm btn-outline" onclick="separateAudio('${song.id}')"><i class="fas fa-cut"></i> Séparer</button>` : ''}
-                            <button class="btn-sm btn-danger" onclick="deleteSong('${song.id}')"><i class="fas fa-trash"></i></button>
+                            <button class="btn-sm btn-outline" data-action="edit" data-id="${escapeAttr(song.id)}" data-title="${escapeAttr(song.title)}" data-artist="${escapeAttr(song.artist || '')}"><i class="fas fa-pen"></i> Modifier</button>
+                            ${song.has_lyrics ? `<button class="btn-sm btn-outline btn-lyrics-edit" data-action="lyrics-edit" data-id="${escapeAttr(song.id)}"><i class="fas fa-align-left"></i> Paroles</button>` : `<button class="btn-sm btn-outline" data-action="lyrics-upload" data-id="${escapeAttr(song.id)}"><i class="fas fa-file-alt"></i> Paroles</button>`}
+                            <button class="btn-sm btn-outline" id="transBtn-${escapeAttr(song.id)}" data-action="transcribe" data-id="${escapeAttr(song.id)}"><i class="fas fa-robot"></i> ${song.has_lyrics ? 'Re-transcrire' : 'Transcrire'}</button>
+                            <button class="btn-sm btn-outline ${song.has_instrumental ? 'btn-reseparate' : ''}" id="sepBtn-${escapeAttr(song.id)}" data-action="separate" data-id="${escapeAttr(song.id)}"><i class="fas fa-cut"></i> ${song.has_instrumental ? 'Re-séparer' : 'Séparer'}</button>
+                            <div class="dropdown" style="position:relative;display:inline-block;">
+                                <button class="btn-sm btn-outline" data-action="download-menu" data-id="${escapeAttr(song.id)}"><i class="fas fa-download"></i></button>
+                                <div class="dropdown-menu" id="dlMenu-${escapeAttr(song.id)}">
+                                    <a href="/api/download/${encodeURIComponent(song.id)}/original" class="dropdown-item"><i class="fas fa-music"></i> Original</a>
+                                    ${song.has_instrumental ? `<a href="/api/download/${encodeURIComponent(song.id)}/instrumental" class="dropdown-item"><i class="fas fa-guitar"></i> Instrumental</a>
+                                    <a href="/api/download/${encodeURIComponent(song.id)}/vocals" class="dropdown-item"><i class="fas fa-microphone"></i> Vocals</a>` : ''}
+                                    ${song.has_lyrics ? `<a href="/api/download/${encodeURIComponent(song.id)}/lyrics" class="dropdown-item"><i class="fas fa-file-alt"></i> Paroles</a>` : ''}
+                                </div>
+                            </div>
+                            <button class="btn-sm btn-danger" data-action="delete" data-id="${escapeAttr(song.id)}"><i class="fas fa-trash"></i></button>
                         </td>
                     </tr>
                 `).join('');
+
+                // Bind event listeners (safer than inline onclick with user data)
+                tbody.querySelectorAll('[data-action]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        const action = btn.dataset.action;
+                        const id = btn.dataset.id;
+                        if (action === 'edit') openEditModal(id, btn.dataset.title, btn.dataset.artist);
+                        else if (action === 'lyrics-edit') openLyricsEditor(id);
+                        else if (action === 'lyrics-upload') uploadLyrics(id);
+                        else if (action === 'transcribe') transcribeSong(id);
+                        else if (action === 'separate') separateAudio(id);
+                        else if (action === 'download-menu') toggleDownloadMenu(id);
+                        else if (action === 'delete') deleteSong(id);
+                    });
+                });
             } catch (err) {
                 console.error('Error loading songs:', err);
             }
@@ -159,31 +243,56 @@
             const artist = document.getElementById('editArtist').value;
             const lyricsFile = document.getElementById('editLyricsFile').files[0];
 
-            // Update metadata
-            await fetch(`/api/songs/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ title, artist })
-            });
+            if (!csrfToken) { alert('Erreur: token de securite manquant. Rechargez la page.'); return; }
 
-            // Upload new lyrics if provided
-            if (lyricsFile) {
-                const fd = new FormData();
-                fd.append('lyrics_file', lyricsFile);
-                await fetch(`/api/upload-lyrics/${id}`, { method: 'POST', body: fd });
+            try {
+                // Update metadata
+                const resp = await fetch(`/api/songs/${id}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ title, artist })
+                });
+
+                if (!resp.ok) {
+                    const data = await resp.json();
+                    alert('Erreur: ' + (data.error || 'Modification echouee'));
+                    return;
+                }
+
+                // Upload new lyrics if provided
+                if (lyricsFile) {
+                    const fd = new FormData();
+                    fd.append('lyrics_file', lyricsFile);
+                    fd.append('_csrf_token', csrfToken);
+                    const lResp = await fetch(`/api/upload-lyrics/${id}`, { method: 'POST', body: fd });
+                    if (!lResp.ok) {
+                        const lData = await lResp.json();
+                        alert('Erreur paroles: ' + (lData.error || 'Upload echoue'));
+                    }
+                }
+
+                closeEditModal();
+                loadSongs();
+            } catch (err) {
+                alert('Erreur: ' + err.message);
             }
-
-            closeEditModal();
-            loadSongs();
         }
 
         // ─── Actions ────────────────────────────────────────
         async function separateAudio(songId) {
-            if (!confirm('Lancer la séparation audio avec Demucs ? Cela peut prendre du temps.')) return;
+            if (!confirm('Lancer la séparation audio avec Demucs ? Cela peut prendre plusieurs minutes.')) return;
+
+            const btn = document.getElementById(`sepBtn-${songId}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Séparation...';
+                btn.classList.add('btn-processing');
+            }
+
             try {
                 const resp = await fetch(`/api/separate/${songId}`, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                     body: JSON.stringify({})
                 });
                 const data = await resp.json();
@@ -191,6 +300,60 @@
                 loadSongs();
             } catch (err) {
                 alert('Error: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-cut"></i> Séparer';
+                    btn.classList.remove('btn-processing');
+                }
+            }
+        }
+
+        function toggleDownloadMenu(songId) {
+            // Close all other menus
+            document.querySelectorAll('.dropdown-menu.show').forEach(m => {
+                if (m.id !== `dlMenu-${songId}`) m.classList.remove('show');
+            });
+            const menu = document.getElementById(`dlMenu-${songId}`);
+            menu.classList.toggle('show');
+        }
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.dropdown')) {
+                document.querySelectorAll('.dropdown-menu.show').forEach(m => m.classList.remove('show'));
+            }
+        });
+
+        async function transcribeSong(songId) {
+            if (!confirm('Lancer la transcription Whisper ? Cela peut prendre quelques minutes selon la durée de la chanson.')) return;
+
+            const btn = document.getElementById(`transBtn-${songId}`);
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Transcription...';
+                btn.classList.add('btn-processing');
+            }
+
+            try {
+                const resp = await fetch(`/api/transcribe/${songId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ model: 'base' })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    alert(`Transcription terminee ! ${data.segments} segments detectes.`);
+                } else {
+                    alert('Erreur: ' + (data.error || 'Transcription echouee'));
+                }
+                loadSongs();
+            } catch (err) {
+                alert('Erreur: ' + err.message);
+                if (btn) {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-robot"></i> Transcrire';
+                    btn.classList.remove('btn-processing');
+                }
             }
         }
 
@@ -203,6 +366,7 @@
                 if (!file) return;
                 const fd = new FormData();
                 fd.append('lyrics_file', file);
+                fd.append('_csrf_token', csrfToken);
                 try {
                     const resp = await fetch(`/api/upload-lyrics/${songId}`, {
                         method: 'POST', body: fd
@@ -220,12 +384,232 @@
         async function deleteSong(songId) {
             if (!confirm('Supprimer cette chanson définitivement ?')) return;
             try {
-                const resp = await fetch(`/api/songs/${songId}`, { method: 'DELETE' });
+                const resp = await fetch(`/api/songs/${songId}`, { method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken } });
                 const data = await resp.json();
                 alert(resp.ok ? 'Chanson supprimée.' : data.error);
                 loadSongs();
             } catch (err) {
                 alert('Error: ' + err.message);
+            }
+        }
+
+        // ─── Lyrics Editor ────────────────────────────────
+        let lyricsSegments = [];
+
+        async function openLyricsEditor(songId) {
+            document.getElementById('lyricsEditorSongId').value = songId;
+            const audio = document.getElementById('lyricsAudioPreview');
+            audio.src = `/api/audio/${songId}/original`;
+            audio.currentTime = 0;
+            audio.pause();
+            document.getElementById('lyricsPlayPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+
+            // Setup audio events
+            audio.ontimeupdate = () => {
+                const seek = document.getElementById('lyricsAudioSeek');
+                if (audio.duration) {
+                    seek.value = (audio.currentTime / audio.duration) * 100;
+                }
+                document.getElementById('lyricsAudioTime').textContent =
+                    `${formatTime(audio.currentTime)} / ${formatTime(audio.duration || 0)}`;
+                highlightCurrentRow(audio.currentTime);
+            };
+
+            document.getElementById('lyricsAudioSeek').oninput = (e) => {
+                if (audio.duration) {
+                    audio.currentTime = (e.target.value / 100) * audio.duration;
+                }
+            };
+
+            // Fetch lyrics
+            try {
+                const resp = await fetch(`/api/lyrics/${songId}`);
+                const data = await resp.json();
+                if (data.segments) {
+                    lyricsSegments = data.segments.map(seg => ({
+                        time: seg.time,
+                        end_time: seg.end_time || seg.time + 3,
+                        text: seg.text
+                    }));
+                } else {
+                    lyricsSegments = [];
+                }
+            } catch (err) {
+                lyricsSegments = [];
+            }
+
+            renderLyricsTable();
+            document.getElementById('lyricsEditorModal').style.display = 'flex';
+        }
+
+        function closeLyricsEditor() {
+            const audio = document.getElementById('lyricsAudioPreview');
+            audio.pause();
+            audio.src = '';
+            document.getElementById('lyricsEditorModal').style.display = 'none';
+        }
+
+        function renderLyricsTable() {
+            const tbody = document.getElementById('lyricsTableBody');
+            if (!lyricsSegments.length) {
+                tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Aucune parole. Cliquez sur "Ajouter une ligne".</p></td></tr>';
+                return;
+            }
+            tbody.innerHTML = lyricsSegments.map((seg, i) => `
+                <tr data-index="${i}" class="lyrics-row" ondblclick="lyricsSeekTo(${seg.time})">
+                    <td class="lyrics-row-num">${i + 1}</td>
+                    <td>
+                        <input type="text" class="lyrics-time-input" value="${formatTimestamp(seg.time)}"
+                               onchange="updateSegmentTime(${i}, 'time', this.value)" title="HH:MM:SS.mmm">
+                    </td>
+                    <td>
+                        <input type="text" class="lyrics-time-input" value="${formatTimestamp(seg.end_time)}"
+                               onchange="updateSegmentTime(${i}, 'end_time', this.value)" title="HH:MM:SS.mmm">
+                    </td>
+                    <td>
+                        <input type="text" class="lyrics-text-input" value="${escapeHtml(seg.text)}"
+                               onchange="lyricsSegments[${i}].text = this.value">
+                    </td>
+                    <td class="lyrics-row-actions">
+                        <button class="btn-icon" onclick="lyricsPlaySegment(${i})" title="Ecouter"><i class="fas fa-play-circle"></i></button>
+                        <button class="btn-icon" onclick="lyricsDeleteRow(${i})" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function highlightCurrentRow(currentTime) {
+            document.querySelectorAll('.lyrics-row').forEach(row => {
+                const idx = parseInt(row.dataset.index);
+                const seg = lyricsSegments[idx];
+                if (seg && currentTime >= seg.time && currentTime <= seg.end_time) {
+                    row.classList.add('lyrics-row-active');
+                } else {
+                    row.classList.remove('lyrics-row-active');
+                }
+            });
+        }
+
+        function lyricsSeekTo(time) {
+            const audio = document.getElementById('lyricsAudioPreview');
+            audio.currentTime = time;
+            if (audio.paused) {
+                audio.play();
+                document.getElementById('lyricsPlayPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+            }
+        }
+
+        function lyricsPlaySegment(index) {
+            const seg = lyricsSegments[index];
+            const audio = document.getElementById('lyricsAudioPreview');
+            audio.currentTime = seg.time;
+            audio.play();
+            document.getElementById('lyricsPlayPauseBtn').innerHTML = '<i class="fas fa-pause"></i>';
+
+            // Stop at end of segment
+            const stopHandler = () => {
+                if (audio.currentTime >= seg.end_time) {
+                    audio.pause();
+                    document.getElementById('lyricsPlayPauseBtn').innerHTML = '<i class="fas fa-play"></i>';
+                    audio.removeEventListener('timeupdate', stopHandler);
+                }
+            };
+            audio.addEventListener('timeupdate', stopHandler);
+        }
+
+        function lyricsTogglePlayPause() {
+            const audio = document.getElementById('lyricsAudioPreview');
+            const btn = document.getElementById('lyricsPlayPauseBtn');
+            if (audio.paused) {
+                audio.play();
+                btn.innerHTML = '<i class="fas fa-pause"></i>';
+            } else {
+                audio.pause();
+                btn.innerHTML = '<i class="fas fa-play"></i>';
+            }
+        }
+
+        function lyricsAddRow() {
+            const lastSeg = lyricsSegments[lyricsSegments.length - 1];
+            const startTime = lastSeg ? lastSeg.end_time : 0;
+            lyricsSegments.push({ time: startTime, end_time: startTime + 3, text: '' });
+            renderLyricsTable();
+            // Scroll to bottom
+            const wrapper = document.querySelector('.lyrics-table-wrapper');
+            wrapper.scrollTop = wrapper.scrollHeight;
+        }
+
+        function lyricsDeleteRow(index) {
+            lyricsSegments.splice(index, 1);
+            renderLyricsTable();
+        }
+
+        function updateSegmentTime(index, field, value) {
+            const seconds = parseTimestamp(value);
+            if (seconds !== null) {
+                lyricsSegments[index][field] = seconds;
+            }
+        }
+
+        function formatTimestamp(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            const ms = Math.round((seconds % 1) * 1000);
+            return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}.${String(ms).padStart(3,'0')}`;
+        }
+
+        function parseTimestamp(str) {
+            // Accepts HH:MM:SS.mmm or MM:SS.mmm or SS.mmm
+            const parts = str.replace(',', '.').split(':');
+            try {
+                if (parts.length === 3) {
+                    const [h, m, rest] = parts;
+                    const [s, ms] = rest.split('.');
+                    return parseInt(h)*3600 + parseInt(m)*60 + parseInt(s) + (parseInt(ms||0)/1000);
+                } else if (parts.length === 2) {
+                    const [m, rest] = parts;
+                    const [s, ms] = rest.split('.');
+                    return parseInt(m)*60 + parseInt(s) + (parseInt(ms||0)/1000);
+                }
+            } catch(e) {}
+            return null;
+        }
+
+        function formatTime(sec) {
+            if (!sec || isNaN(sec)) return '00:00';
+            const m = Math.floor(sec / 60);
+            const s = Math.floor(sec % 60);
+            return `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
+
+        function escapeHtml(str) {
+            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+        }
+
+        function formatTitle(str) {
+            // Clean up filename-style titles: remove underscores, clean separators
+            return str.replace(/_/g, ' ').replace(/\s*-\s*/g, ' - ').replace(/\s+/g, ' ').trim();
+        }
+
+        async function saveLyricsEditor() {
+            const songId = document.getElementById('lyricsEditorSongId').value;
+            try {
+                const resp = await fetch(`/api/lyrics-save/${songId}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ segments: lyricsSegments })
+                });
+                const data = await resp.json();
+                if (resp.ok) {
+                    alert('Paroles enregistrees !');
+                    closeLyricsEditor();
+                    loadSongs();
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (err) {
+                alert('Erreur: ' + err.message);
             }
         }
 
