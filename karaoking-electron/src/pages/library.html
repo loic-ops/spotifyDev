@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src * data:; media-src *;">
+    <title>KaraoKing - Recherche</title>
+    <link rel="stylesheet" href="../css/app.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <div class="app-content">
+            <div class="top-bar">
+                <div class="top-bar-title">Recherche</div>
+                <button class="icon-btn" id="settingsBtn"><i class="fas fa-server"></i></button>
+            </div>
+
+            <div class="scroll-content">
+                <div class="search-bar">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" class="search-input" placeholder="Rechercher une chanson ou un artiste...">
+                </div>
+
+                <div class="song-list" id="songList">
+                    <div class="empty-state"><i class="fas fa-spinner fa-spin"></i><p>Chargement...</p></div>
+                </div>
+            </div>
+
+            <!-- Mini Player -->
+            <div class="mini-player" id="miniPlayer">
+                <div class="mini-player-cover" id="miniCover"><div class="song-row-cover-ph"><i class="fas fa-music"></i></div></div>
+                <div class="mini-player-info">
+                    <div class="mini-player-title" id="miniTitle">-</div>
+                    <div class="mini-player-artist" id="miniArtist">-</div>
+                </div>
+                <button class="mini-player-btn" id="miniPlayBtn"><i class="fas fa-play"></i></button>
+            </div>
+
+            <nav class="bottom-nav">
+                <button class="nav-btn" data-page="home"><i class="fas fa-home"></i><span>Accueil</span></button>
+                <button class="nav-btn active" data-page="library"><i class="fas fa-search"></i><span>Recherche</span></button>
+                <button class="nav-btn" data-page="player"><i class="fas fa-play-circle"></i><span>Lecteur</span></button>
+            </nav>
+        </div>
+    </div>
+
+    <audio id="audioVocals" preload="auto"></audio>
+    <audio id="audioInstrumental" preload="auto"></audio>
+
+    <script>
+        let songs = [];
+        let currentSong = null;
+        let isPlaying = false;
+        const audioV = document.getElementById('audioVocals');
+        const audioI = document.getElementById('audioInstrumental');
+
+        function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+        function fmt(s) { return (s||'').replace(/_/g,' ').replace(/\s*-\s*/g,' - ').trim(); }
+
+        // Navigation
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const page = btn.dataset.page;
+                if (page === 'library') return;
+                if (currentSong) sessionStorage.setItem('currentSong', JSON.stringify(currentSong));
+                sessionStorage.setItem('isPlaying', isPlaying);
+                sessionStorage.setItem('currentTime', audioV.currentTime);
+                window.karaoking.goto(page);
+            });
+        });
+
+        document.getElementById('settingsBtn').addEventListener('click', () => window.karaoking.goConnect());
+
+        document.getElementById('miniPlayer').addEventListener('click', (e) => {
+            if (e.target.closest('.mini-player-btn')) return;
+            if (currentSong) {
+                sessionStorage.setItem('currentSong', JSON.stringify(currentSong));
+                sessionStorage.setItem('isPlaying', isPlaying);
+                sessionStorage.setItem('currentTime', audioV.currentTime);
+                window.karaoking.goto('player');
+            }
+        });
+
+        document.getElementById('miniPlayBtn').addEventListener('click', () => {
+            if (!currentSong) return;
+            if (isPlaying) { audioV.pause(); audioI.pause(); isPlaying = false; }
+            else { audioV.play(); if (audioI.src) { audioI.currentTime = audioV.currentTime; audioI.play(); } isPlaying = true; }
+            document.getElementById('miniPlayBtn').innerHTML = `<i class="fas fa-${isPlaying ? 'pause' : 'play'}"></i>`;
+        });
+
+        async function loadLibrary() {
+            songs = await window.karaoking.fetchApi('/api/songs') || [];
+            const list = document.getElementById('songList');
+
+            if (!songs.length) {
+                list.innerHTML = '<div class="empty-state"><i class="fas fa-record-vinyl"></i><h3>Aucune chanson</h3></div>';
+                return;
+            }
+
+            let html = '';
+            for (let i = 0; i < songs.length; i++) {
+                const song = songs[i];
+                const coverUrl = await window.karaoking.getCoverUrl(song.id);
+                const isKaraoke = song.has_instrumental && song.has_lyrics;
+                html += `
+                <div class="song-row" data-id="${esc(song.id)}">
+                    <div class="song-row-cover">
+                        <img src="${coverUrl}" alt="" onerror="this.parentElement.innerHTML='<div class=song-row-cover-ph><i class=\\'fas fa-music\\'></i></div>'">
+                    </div>
+                    <div class="song-row-info">
+                        <div class="song-row-title">${esc(fmt(song.title))}</div>
+                        <div class="song-row-artist">${esc(song.artist || 'Artiste inconnu')}</div>
+                    </div>
+                    ${isKaraoke ? '<span class="song-row-badge">Karaoke</span>' : ''}
+                </div>`;
+            }
+            list.innerHTML = html;
+
+            list.querySelectorAll('.song-row').forEach(row => {
+                row.addEventListener('click', () => playSong(row.dataset.id));
+            });
+
+            // Search
+            document.getElementById('searchInput').addEventListener('input', (e) => {
+                const q = e.target.value.toLowerCase().trim();
+                list.querySelectorAll('.song-row').forEach(row => {
+                    const song = songs.find(s => s.id === row.dataset.id);
+                    if (!song) return;
+                    const match = !q || song.title.toLowerCase().includes(q) || (song.artist || '').toLowerCase().includes(q);
+                    row.style.display = match ? '' : 'none';
+                });
+            });
+        }
+
+        async function playSong(songId) {
+            const song = songs.find(s => s.id === songId);
+            if (!song) return;
+            currentSong = song;
+
+            if (song.has_vocals && song.has_instrumental) {
+                audioV.src = await window.karaoking.getAudioUrl(song.id, 'vocals');
+                audioI.src = await window.karaoking.getAudioUrl(song.id, 'instrumental');
+            } else {
+                audioV.src = await window.karaoking.getAudioUrl(song.id, 'original');
+                audioI.src = '';
+            }
+            audioV.load(); if (audioI.src) audioI.load();
+            audioV.play(); if (audioI.src) { audioI.currentTime = 0; audioI.play(); }
+            isPlaying = true;
+
+            const mini = document.getElementById('miniPlayer');
+            mini.classList.add('visible');
+            document.getElementById('miniTitle').textContent = fmt(song.title);
+            document.getElementById('miniArtist').textContent = song.artist || 'Artiste inconnu';
+            document.getElementById('miniPlayBtn').innerHTML = '<i class="fas fa-pause"></i>';
+
+            const coverUrl = await window.karaoking.getCoverUrl(song.id);
+            document.getElementById('miniCover').innerHTML = `<img src="${coverUrl}" alt="" onerror="this.parentElement.innerHTML='<div class=song-row-cover-ph><i class=\\'fas fa-music\\'></i></div>'">`;
+
+            // Highlight current
+            document.querySelectorAll('.song-row').forEach(r => r.classList.toggle('playing', r.dataset.id === songId));
+        }
+
+        audioV.addEventListener('ended', () => {
+            isPlaying = false;
+            document.getElementById('miniPlayBtn').innerHTML = '<i class="fas fa-play"></i>';
+            if (currentSong) {
+                const idx = songs.findIndex(s => s.id === currentSong.id);
+                if (idx < songs.length - 1) playSong(songs[idx + 1].id);
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', loadLibrary);
+    </script>
+</body>
+</html>

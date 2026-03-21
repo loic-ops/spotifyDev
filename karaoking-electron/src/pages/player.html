@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src * data:; media-src *;">
+    <title>KaraoKing - Lecteur</title>
+    <link rel="stylesheet" href="../css/app.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="app-layout">
+        <div class="app-content">
+            <div class="top-bar">
+                <button class="icon-btn" id="backBtn"><i class="fas fa-chevron-down"></i></button>
+                <div class="top-bar-title" style="font-size:12px;text-transform:uppercase;letter-spacing:1.5px;color:var(--text-muted);">En lecture</div>
+                <div style="width:34px;"></div>
+            </div>
+
+            <!-- Player: side by side -->
+            <div class="player-view">
+                <!-- Left: Cover + Info + Controls -->
+                <div class="player-left">
+                    <div class="player-cover" id="playerCover">
+                        <div class="player-cover-ph"><i class="fas fa-music"></i></div>
+                    </div>
+
+                    <div class="player-song-info">
+                        <div class="player-song-title" id="playerTitle">Aucune chanson</div>
+                        <div class="player-song-artist" id="playerArtist">Selectionnez une chanson</div>
+                    </div>
+
+                    <div class="player-progress">
+                        <div class="progress-bar" id="progressBar">
+                            <div class="progress-fill" id="progressFill"></div>
+                        </div>
+                        <div class="progress-times">
+                            <span id="currentTime">0:00</span>
+                            <span id="totalTime">0:00</span>
+                        </div>
+                    </div>
+
+                    <div class="player-controls">
+                        <button class="ctrl-btn" id="prevSongBtn"><i class="fas fa-backward-step"></i></button>
+                        <button class="ctrl-btn ctrl-seek" id="seekBackBtn"><i class="fas fa-rotate-left"></i><span class="seek-label">10</span></button>
+                        <button class="ctrl-btn ctrl-play" id="playBtn"><i class="fas fa-play" id="playIcon"></i></button>
+                        <button class="ctrl-btn ctrl-seek" id="seekFwdBtn"><i class="fas fa-rotate-right"></i><span class="seek-label">10</span></button>
+                        <button class="ctrl-btn" id="nextSongBtn"><i class="fas fa-forward-step"></i></button>
+                    </div>
+
+                    <!-- Track volume sliders -->
+                    <div class="track-sliders" id="trackSliders">
+                        <div class="track-slider">
+                            <i class="fas fa-microphone track-slider-icon"></i>
+                            <input type="range" id="vocalsSlider" min="0" max="100" value="100" title="Voix">
+                        </div>
+                        <div class="track-slider">
+                            <i class="fas fa-guitar track-slider-icon"></i>
+                            <input type="range" id="instrumentalSlider" min="0" max="100" value="100" title="Instrumental">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right: Lyrics -->
+                <div class="player-right">
+                    <div class="lyrics-container" id="lyricsContainer">
+                        <p class="lyrics-placeholder">Pas de paroles disponibles</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="bottom-nav">
+                <button class="nav-btn" data-page="home"><i class="fas fa-home"></i><span>Accueil</span></button>
+                <button class="nav-btn" data-page="library"><i class="fas fa-search"></i><span>Recherche</span></button>
+                <button class="nav-btn active" data-page="player"><i class="fas fa-play-circle"></i><span>Lecteur</span></button>
+            </nav>
+        </div>
+    </div>
+
+    <audio id="audioVocals" preload="auto"></audio>
+    <audio id="audioInstrumental" preload="auto"></audio>
+
+    <script>
+        let songs = [];
+        let currentSong = null;
+        let isPlaying = false;
+        let lyrics = [];
+        let wordTimings = [];
+        let currentLineIndex = -1;
+        const audioV = document.getElementById('audioVocals');
+        const audioI = document.getElementById('audioInstrumental');
+
+        function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+        function fmt(s) { return (s||'').replace(/_/g,' ').replace(/\s*-\s*/g,' - ').trim(); }
+        function fmtTime(s) { if (isNaN(s)) return '0:00'; return `${Math.floor(s/60)}:${Math.floor(s%60).toString().padStart(2,'0')}`; }
+
+        // Nav
+        document.querySelectorAll('.nav-btn').forEach(btn => {
+            btn.addEventListener('click', () => { if (btn.dataset.page !== 'player') window.karaoking.goto(btn.dataset.page); });
+        });
+        document.getElementById('backBtn').addEventListener('click', () => window.karaoking.goto('home'));
+
+        // Controls
+        document.getElementById('playBtn').addEventListener('click', togglePlay);
+        document.getElementById('seekBackBtn').addEventListener('click', () => seekRelative(-10));
+        document.getElementById('seekFwdBtn').addEventListener('click', () => seekRelative(10));
+        document.getElementById('prevSongBtn').addEventListener('click', prevSong);
+        document.getElementById('nextSongBtn').addEventListener('click', nextSong);
+
+        // Track sliders
+        document.getElementById('vocalsSlider').addEventListener('input', (e) => { audioV.volume = e.target.value / 100; });
+        document.getElementById('instrumentalSlider').addEventListener('input', (e) => { audioI.volume = e.target.value / 100; });
+
+        // Progress seeking
+        document.getElementById('progressBar').addEventListener('click', (e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+            const t = pct * (audioV.duration || 0);
+            audioV.currentTime = t;
+            if (audioI.src) audioI.currentTime = t;
+        });
+
+        function togglePlay() {
+            if (!currentSong) return;
+            if (isPlaying) { audioV.pause(); audioI.pause(); }
+            else { audioV.play(); if (audioI.src) { audioI.currentTime = audioV.currentTime; audioI.play(); } }
+            isPlaying = !isPlaying;
+            document.getElementById('playIcon').className = `fas fa-${isPlaying ? 'pause' : 'play'}`;
+        }
+
+        function seekRelative(sec) {
+            const t = Math.max(0, Math.min(audioV.duration || 0, audioV.currentTime + sec));
+            audioV.currentTime = t;
+            if (audioI.src) audioI.currentTime = t;
+        }
+
+        function nextSong() {
+            if (!currentSong) return;
+            const idx = songs.findIndex(s => s.id === currentSong.id);
+            if (idx < songs.length - 1) playSong(songs[idx + 1].id);
+        }
+
+        function prevSong() {
+            if (!currentSong) return;
+            if (audioV.currentTime > 3) { audioV.currentTime = 0; if (audioI.src) audioI.currentTime = 0; return; }
+            const idx = songs.findIndex(s => s.id === currentSong.id);
+            if (idx > 0) playSong(songs[idx - 1].id);
+        }
+
+        // Time update
+        audioV.addEventListener('timeupdate', () => {
+            const dur = audioV.duration || 1;
+            document.getElementById('progressFill').style.width = (audioV.currentTime / dur * 100) + '%';
+            document.getElementById('currentTime').textContent = fmtTime(audioV.currentTime);
+            updateLyrics(audioV.currentTime);
+        });
+
+        audioV.addEventListener('loadedmetadata', () => {
+            document.getElementById('totalTime').textContent = fmtTime(audioV.duration);
+        });
+
+        audioV.addEventListener('ended', () => {
+            isPlaying = false;
+            document.getElementById('playIcon').className = 'fas fa-play';
+            nextSong();
+        });
+
+        // ─── Lyrics ──────────────────────────────────────────────────────────
+
+        function parseLrc(content) {
+            const result = [];
+            const pattern = /\[(\d{2}):(\d{2})\.(\d{2,3})\](.*)/;
+            for (const line of content.replace(/\r/g,'').trim().split('\n')) {
+                const m = line.match(pattern);
+                if (m) {
+                    const time = parseInt(m[1])*60 + parseInt(m[2]) + (m[3].length===2 ? parseInt(m[3])*10 : parseInt(m[3]))/1000;
+                    result.push({ time, text: m[4].trim() });
+                }
+            }
+            return result.sort((a,b) => a.time - b.time);
+        }
+
+        function parseSrt(content) {
+            const segments = [];
+            const ts = /(\d{1,2}):(\d{2}):(\d{2})[,.](\d{3})\s*-->\s*(\d{1,2}):(\d{2}):(\d{2})[,.](\d{3})/;
+            const lines = content.replace(/\r/g,'').trim().split('\n');
+            let i = 0;
+            while (i < lines.length) {
+                const m = lines[i].trim().match(ts);
+                if (m) {
+                    const time = parseInt(m[1])*3600 + parseInt(m[2])*60 + parseInt(m[3]) + parseInt(m[4])/1000;
+                    const end = parseInt(m[5])*3600 + parseInt(m[6])*60 + parseInt(m[7]) + parseInt(m[8])/1000;
+                    i++;
+                    const parts = [];
+                    while (i < lines.length && lines[i].trim() !== '' && !lines[i].trim().match(/^\d+$/)) { parts.push(lines[i].trim()); i++; }
+                    const text = parts.join(' ').trim();
+                    if (text) segments.push({ time, end_time: end, text });
+                } else { i++; }
+            }
+            return segments.sort((a,b) => a.time - b.time);
+        }
+
+        function renderLyrics() {
+            const container = document.getElementById('lyricsContainer');
+            if (!lyrics.length) {
+                container.innerHTML = '<p class="lyrics-placeholder">Pas de paroles disponibles</p>';
+                return;
+            }
+
+            wordTimings = [];
+            const linesHtml = lyrics.map((line, i) => {
+                const lineStart = line.time;
+                const lineEnd = (i < lyrics.length - 1) ? lyrics[i+1].time : (line.end_time || lineStart + 5);
+                const words = line.text.split(/\s+/).filter(w => w.length > 0);
+
+                if (!words.length) { wordTimings.push([]); return `<p class="lyrics-line" data-index="${i}"></p>`; }
+
+                const totalChars = words.reduce((s,w) => s + w.length, 0);
+                const duration = lineEnd - lineStart;
+                let elapsed = 0;
+                const timings = [];
+
+                const wordsHtml = words.map((word, wi) => {
+                    const wStart = lineStart + (elapsed / totalChars) * duration;
+                    const wEnd = lineStart + ((elapsed + word.length) / totalChars) * duration;
+                    elapsed += word.length;
+                    timings.push({ start: wStart, end: wEnd });
+                    return `<span class="lyrics-word" data-line="${i}" data-word="${wi}">${esc(word)}</span>`;
+                }).join(' ');
+
+                wordTimings.push(timings);
+                return `<p class="lyrics-line" data-index="${i}">${wordsHtml}</p>`;
+            }).join('');
+
+            container.innerHTML = '<div class="lyrics-spacer"></div>' + linesHtml + '<div class="lyrics-spacer"></div>';
+        }
+
+        function updateLyrics(time) {
+            if (!lyrics.length) return;
+            let newIdx = -1;
+            for (let i = 0; i < lyrics.length; i++) { if (time >= lyrics[i].time) newIdx = i; else break; }
+
+            if (newIdx !== currentLineIndex) {
+                currentLineIndex = newIdx;
+                document.querySelectorAll('.lyrics-line').forEach((el, i) => {
+                    el.classList.remove('active', 'past', 'upcoming');
+                    if (i < currentLineIndex) el.classList.add('past');
+                    else if (i === currentLineIndex) el.classList.add('active');
+                    else if (i === currentLineIndex + 1) el.classList.add('upcoming');
+                });
+
+                const active = document.querySelector('.lyrics-line.active');
+                if (active) {
+                    const container = document.getElementById('lyricsContainer');
+                    container.scrollTo({ top: active.offsetTop - container.clientHeight / 2 + active.offsetHeight / 2, behavior: 'smooth' });
+                }
+            }
+
+            // Word highlight
+            if (wordTimings.length && currentLineIndex >= 0) {
+                document.querySelectorAll('.lyrics-word').forEach(el => {
+                    const li = parseInt(el.dataset.line);
+                    const wi = parseInt(el.dataset.word);
+                    const t = wordTimings[li] && wordTimings[li][wi];
+                    if (!t) return;
+                    el.classList.remove('word-active', 'word-past');
+                    if (li < currentLineIndex) el.classList.add('word-past');
+                    else if (li === currentLineIndex) {
+                        if (time >= t.start && time < t.end) el.classList.add('word-active');
+                        else if (time >= t.end) el.classList.add('word-past');
+                    }
+                });
+            }
+        }
+
+        // ─── Play ────────────────────────────────────────────────────────────
+
+        async function playSong(songId) {
+            const song = songs.find(s => s.id === songId);
+            if (!song) return;
+            currentSong = song;
+
+            document.getElementById('playerTitle').textContent = fmt(song.title);
+            document.getElementById('playerArtist').textContent = song.artist || 'Artiste inconnu';
+
+            const coverUrl = await window.karaoking.getCoverUrl(song.id);
+            document.getElementById('playerCover').innerHTML = `<img src="${coverUrl}" alt="" onerror="this.parentElement.innerHTML='<div class=player-cover-ph><i class=\\'fas fa-music\\'></i></div>'">`;
+
+            // Show/hide track sliders
+            const sliders = document.getElementById('trackSliders');
+            if (song.has_vocals && song.has_instrumental) {
+                audioV.src = await window.karaoking.getAudioUrl(song.id, 'vocals');
+                audioI.src = await window.karaoking.getAudioUrl(song.id, 'instrumental');
+                sliders.style.display = '';
+            } else {
+                audioV.src = await window.karaoking.getAudioUrl(song.id, 'original');
+                audioI.src = '';
+                sliders.style.display = 'none';
+            }
+
+            audioV.load(); if (audioI.src) audioI.load();
+            audioV.play(); if (audioI.src) { audioI.currentTime = 0; audioI.play(); }
+            isPlaying = true;
+            document.getElementById('playIcon').className = 'fas fa-pause';
+
+            // Reset slider values
+            document.getElementById('vocalsSlider').value = 100;
+            document.getElementById('instrumentalSlider').value = 100;
+            audioV.volume = 1; audioI.volume = 1;
+
+            // Load lyrics
+            const lyricsData = await window.karaoking.fetchApi(`/api/lyrics/${song.id}`);
+            if (lyricsData && lyricsData.segments) {
+                lyrics = lyricsData.segments;
+            } else if (lyricsData && lyricsData.lrc) {
+                lyrics = parseLrc(lyricsData.lrc);
+            } else {
+                lyrics = [];
+            }
+            currentLineIndex = -1;
+            renderLyrics();
+        }
+
+        // ─── Init ────────────────────────────────────────────────────────────
+
+        async function init() {
+            songs = await window.karaoking.fetchApi('/api/songs') || [];
+            const saved = sessionStorage.getItem('currentSong');
+            if (saved) {
+                try {
+                    const song = JSON.parse(saved);
+                    if (songs.find(s => s.id === song.id)) await playSong(song.id);
+                } catch { /* ignore */ }
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', init);
+    </script>
+</body>
+</html>
