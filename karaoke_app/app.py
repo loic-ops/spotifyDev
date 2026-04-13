@@ -18,7 +18,7 @@ app.config.from_object(Config)
 # session securisee
 app.config['SESSION_COOKIE_HTTPONLY'] = True
 app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
-app.config['SESSION_COOKIE_SECURE'] = os.environ.get('FLASK_DEBUG', 'false').lower() != 'true'
+app.config['SESSION_COOKIE_SECURE'] = os.environ.get('SESSION_COOKIE_SECURE', 'false').lower() == 'true'
 
 REMEMBER_ME_LIFETIME = 30 * 24 * 3600   # 30 jours
 DEFAULT_SESSION_LIFETIME = 4 * 3600     # 4h
