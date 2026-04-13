@@ -1,0 +1,37 @@
+# Don't ship runtime data into the image build context.
+# These can change between every upload and would otherwise invalidate
+# the COPY layer cache (and waste bandwidth sending Mo to the daemon).
+static/uploads/
+static/processed/
+data/
+*.db
+*.sqlite
+
+# Local secrets — mounted at runtime via docker-compose volumes
+.env
+.env.local
+
+# Python build/cache artifacts
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Git metadata
+.git/
+.gitignore
+
+# Don't ship the dockerfile or compose files into the image itself
+Dockerfile
+docker-compose.yml
+.dockerignore

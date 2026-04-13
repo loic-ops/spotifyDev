@@ -1,0 +1,98 @@
+/* design tokens — source de verite visuelle */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root,
+[data-theme="dark"] {
+    /* fonds */
+    --bg:               #0D0D1A;
+    --bg-elevated:      #14142B;
+    --surface:          #1A1A2E;
+    --surface-hover:    #22223C;
+    --glass:            rgba(255, 255, 255, 0.06);
+    --glass-strong:     rgba(255, 255, 255, 0.10);
+    --glass-border:     rgba(255, 255, 255, 0.12);
+
+    /* accents */
+    --accent:           #7C4DFF;
+    --accent-soft:      rgba(124, 77, 255, 0.16);
+    --accent-glow:      rgba(124, 77, 255, 0.38);
+    --accent-2:         #00E5FF;
+    --accent-2-soft:    rgba(0, 229, 255, 0.16);
+    --accent-2-glow:    rgba(0, 229, 255, 0.40);
+    --gold:             #FFB300;
+    --success:          #00E676;
+    --error:            #FF5252;
+
+    /* texte */
+    --text:             #FFFFFF;
+    --text-muted:       #A0A0C0;
+    --text-dim:         rgba(255, 255, 255, 0.35);
+    --text-faint:       rgba(255, 255, 255, 0.18);
+
+    /* bordures */
+    --border:           rgba(255, 255, 255, 0.08);
+    --border-strong:    rgba(255, 255, 255, 0.16);
+
+    /* placeholder gradients (cover fallback) */
+    --ph-gradient-1:    #1E1E3A;
+    --ph-gradient-2:    #2A1A4E;
+    --ph-color:         rgba(255, 255, 255, 0.12);
+
+    /* rayons & ombres */
+    --radius-sm:        8px;
+    --radius:           12px;
+    --radius-lg:        18px;
+    --radius-xl:        24px;
+    --shadow-glass:     0 8px 32px rgba(0, 0, 0, 0.45),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    --shadow-card:      0 6px 28px rgba(0, 0, 0, 0.40);
+    --shadow-glow:      0 0 24px var(--accent-glow);
+
+    /* typo */
+    --font:             'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    --fs-h1:            40px;
+    --fs-h2:            26px;
+    --fs-body:          16px;
+    --fs-label:         13px;
+    --fs-lyric-inactive: 18px;
+    --fs-lyric-prev:    20px;
+    --fs-lyric-active:  30px;
+    --fs-lyric-next:    22px;
+
+    /* easing */
+    --ease:             cubic-bezier(0.2, 0.8, 0.2, 1);
+    --dur-fast:         150ms;
+    --dur:              280ms;
+    --dur-slow:         420ms;
+
+    /* z layers */
+    --z-tabbar:         100;
+    --z-miniplayer:     90;
+    --z-modal:          200;
+    --z-fullplayer:     300;
+}
+
+/* light theme — reserve a l'admin web Flask, electron reste dark only */
+[data-theme="light"] {
+    --bg:               #F5F5F7;
+    --bg-elevated:      #FFFFFF;
+    --surface:          #FFFFFF;
+    --surface-hover:    #F0F0F5;
+    --glass:            rgba(0, 0, 0, 0.04);
+    --glass-strong:     rgba(0, 0, 0, 0.07);
+    --glass-border:     rgba(0, 0, 0, 0.10);
+    --accent:           #7C4DFF;
+    --accent-soft:      rgba(124, 77, 255, 0.10);
+    --accent-glow:      rgba(124, 77, 255, 0.25);
+    --text:             #1D1D1F;
+    --text-muted:       #6E6E80;
+    --text-dim:         rgba(0, 0, 0, 0.30);
+    --text-faint:       rgba(0, 0, 0, 0.15);
+    --border:           rgba(0, 0, 0, 0.08);
+    --border-strong:    rgba(0, 0, 0, 0.16);
+    --ph-gradient-1:    #ECE6F5;
+    --ph-gradient-2:    #F2E6EE;
+    --ph-color:         rgba(0, 0, 0, 0.12);
+    --shadow-card:      0 6px 28px rgba(0, 0, 0, 0.10);
+}

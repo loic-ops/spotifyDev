@@ -1,0 +1,438 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Alertes - KaraoKing Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-music"></i>
+                <span>KaraoKing Admin</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin" class="nav-item">
+                    <i class="fas fa-th-large"></i> Tableau de bord
+                </a>
+                <a href="/admin/upload" class="nav-item">
+                    <i class="fas fa-cloud-upload-alt"></i> Importer
+                </a>
+                <a href="/admin/catalogue" class="nav-item">
+                    <i class="fas fa-folder-tree"></i> Catalogue
+                </a>
+                <a href="/admin/analytics" class="nav-item">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </a>
+                <a href="/admin/alerts" class="nav-item active">
+                    <i class="fas fa-bell"></i> Alertes
+                </a>
+                <a href="/admin/logout" class="nav-item nav-logout">
+                    <i class="fas fa-sign-out-alt"></i> Deconnexion
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="admin-header">
+                <h1><i class="fas fa-bell"></i> Alertes — Recherches non trouvees</h1>
+                <div class="admin-header-actions">
+                    <div class="filter-chips" id="filterChips">
+                        <button class="filter-chip active" data-filter="all">Toutes</button>
+                        <button class="filter-chip" data-filter="untreated">
+                            <i class="fas fa-exclamation-circle"></i> Non traitees
+                        </button>
+                        <button class="filter-chip" data-filter="in_progress">
+                            <i class="fas fa-clock"></i> En cours
+                        </button>
+                        <button class="filter-chip" data-filter="added">
+                            <i class="fas fa-check"></i> Ajoutees
+                        </button>
+                    </div>
+                </div>
+            </header>
+
+            <div class="alerts-stats" id="alertsStats"></div>
+
+            <div class="bulk-actions" id="bulkActions" style="display:none;">
+                <span id="bulkSelectedCount">0 sélectionnée(s)</span>
+                <button class="btn btn-danger" onclick="bulkDeleteSelected()">
+                    <i class="fas fa-trash"></i> Supprimer la sélection
+                </button>
+                <button class="btn btn-outline-light" onclick="clearSelection()">
+                    Annuler
+                </button>
+            </div>
+
+            <div class="songs-table-wrapper">
+                <table class="songs-table" id="alertsTable">
+                    <thead>
+                        <tr>
+                            <th style="width:36px;"><input type="checkbox" id="selectAllAlerts" onclick="toggleSelectAll(this)"></th>
+                            <th>Terme recherche</th>
+                            <th>Demandes</th>
+                            <th>Statut</th>
+                            <th>Premiere fois</th>
+                            <th>Derniere fois</th>
+                            <!-- TODO: pagination -->
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertsBody">
+                        <tr>
+                            <td colspan="7" class="empty-state">
+                                <i class="fas fa-bell-slash"></i>
+                                <p>Aucune alerte. Les recherches non trouvees apparaitront ici.</p>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        var allAlerts = [];
+
+        function escapeHtml(str) {
+            return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+        }
+
+        function timeAgo(dateStr) {
+            if (!dateStr) return '-';
+            var d = new Date(dateStr);
+            var diff = Math.floor((Date.now() - d.getTime()) / 1000);
+            if (diff < 60) return 'A l\'instant';
+            if (diff < 3600) return Math.floor(diff / 60) + ' min';
+            if (diff < 86400) return Math.floor(diff / 3600) + ' h';
+            return Math.floor(diff / 86400) + ' j';
+        }
+
+        var STATUS_LABELS = {
+            untreated: { label: 'Non traitee', class: 'badge-warning', icon: 'exclamation-circle' },
+            in_progress: { label: 'En cours', class: 'badge-info', icon: 'clock' },
+            added: { label: 'Ajoutee', class: 'badge-ok', icon: 'check' },
+            unavailable: { label: 'Indisponible', class: 'badge-no', icon: 'ban' },
+            ignored: { label: 'Ignoree', class: 'badge-dim', icon: 'eye-slash' },
+        };
+
+        async function loadAlerts() {
+            // skip reload if user is looking at YT results
+            var anyVisibleYt = Array.from(document.querySelectorAll('.yt-results-row')).some(r => r.style.display !== 'none' && r.style.display !== '');
+            if (anyVisibleYt || document.querySelector('.alert-yt-list')) return;
+
+            try {
+                var resp = await fetch('/api/admin/alerts');
+                allAlerts = await resp.json();
+                var activeFilter = document.querySelector('.filter-chip.active')?.dataset.filter || 'all';
+                renderAlerts(activeFilter);
+                updateStats();
+            } catch (err) {
+                // console.log('loadAlerts fail', err)
+            }
+        }
+
+        function updateStats() {
+            var el = document.getElementById('alertsStats');
+            var untreated = allAlerts.filter(a => a.status === 'untreated').length;
+            var topTerm = allAlerts.length ? allAlerts[0].term : '-';
+            el.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${allAlerts.length}</div>
+                    <div class="stat-label">Total alertes</div>
+                </div>
+                <div class="stat-card stat-urgent">
+                    <div class="stat-value">${untreated}</div>
+                    <div class="stat-label">Non traitees</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${escapeHtml(topTerm)}</div>
+                    <div class="stat-label">Plus demandee</div>
+                </div>
+            `;
+        }
+
+        function renderAlerts(filter) {
+            var tbody = document.getElementById('alertsBody');
+            var filtered = allAlerts;
+            if (filter && filter !== 'all') {
+                filtered = allAlerts.filter(a => a.status === filter);
+            }
+
+            if (!filtered.length) {
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><i class="fas fa-bell-slash"></i><p>Aucune alerte' + (filter !== 'all' ? ' avec ce statut' : '') + '</p></td></tr>';
+                updateBulkBar();
+                return;
+            }
+
+            tbody.innerHTML = filtered.map(a => {
+                var st = STATUS_LABELS[a.status] || STATUS_LABELS.untreated;
+                return `
+                <tr data-id="${a.id}">
+                    <td><input type="checkbox" class="alert-cb" data-id="${a.id}" onclick="updateBulkBar()"></td>
+                    <td class="alert-term"><strong>${escapeHtml(a.term)}</strong></td>
+                    <td>
+                        <span class="alert-count ${a.count >= 5 ? 'alert-count-high' : ''}">${a.count}</span>
+                    </td>
+                    <td>
+                        <span class="badge ${st.class}"><i class="fas fa-${st.icon}"></i> ${st.label}</span>
+                    </td>
+                    <td class="text-muted">${timeAgo(a.first_seen)}</td>
+                    <td class="text-muted">${timeAgo(a.last_seen)}</td>
+                    <td class="actions-cell">
+                        ${a.status === 'untreated' || a.status === 'in_progress' ? `
+                            <button class="btn-sm btn-accent" onclick="searchAndImport(${a.id}, '${escapeHtml(a.term)}')"><i class="fab fa-youtube"></i> Chercher</button>
+                            <button class="btn-sm btn-outline" onclick="setAlertStatus(${a.id}, 'ignored')" title="Ignorer"><i class="fas fa-eye-slash"></i></button>
+                        ` : `
+                            <button class="btn-sm btn-outline" onclick="setAlertStatus(${a.id}, 'untreated')" title="Rouvrir"><i class="fas fa-redo"></i></button>
+                        `}
+                        <button class="btn-sm btn-danger" onclick="deleteSingleAlert(${a.id})" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+                <tr class="yt-results-row" id="ytRow-${a.id}" style="display:none;">
+                    <td colspan="7">
+                        <div class="alert-yt-results" id="ytResults-${a.id}"></div>
+                    </td>
+                </tr>`;
+            }).join('');
+            updateBulkBar();
+        }
+
+        // selection en masse
+        function toggleSelectAll(cb) {
+            document.querySelectorAll('.alert-cb').forEach(c => c.checked = cb.checked);
+            updateBulkBar();
+        }
+
+        function updateBulkBar() {
+            var selected = document.querySelectorAll('.alert-cb:checked');
+            var bar = document.getElementById('bulkActions');
+            if (selected.length > 0) {
+                bar.style.display = '';
+                document.getElementById('bulkSelectedCount').textContent = selected.length + ' sélectionnée(s)';
+            } else {
+                bar.style.display = 'none';
+            }
+        }
+
+        function clearSelection() {
+            document.querySelectorAll('.alert-cb, #selectAllAlerts').forEach(c => c.checked = false);
+            updateBulkBar();
+        }
+
+        async function bulkDeleteSelected() {
+            var ids = Array.from(document.querySelectorAll('.alert-cb:checked')).map(c => parseInt(c.dataset.id));
+            if (!ids.length) return;
+            if (!confirm('Supprimer définitivement ' + ids.length + ' alerte(s) ?')) return;
+            try {
+                var resp = await fetch('/api/admin/alerts/bulk-delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ ids })
+                });
+                if (resp.ok) { clearSelection(); loadAlerts(); }
+                else {
+                    resp.json().then(d => alert('Erreur: ' + (d.error || 'Suppression échouée')));
+                }
+            } catch (err) { alert('Erreur: ' + err.message); }
+        }
+
+        function deleteSingleAlert(id) {
+            if (!confirm('Supprimer cette alerte ?')) return;
+            fetch('/api/admin/alerts/bulk-delete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify({ ids: [id] })
+            }).then(resp => { if (resp.ok) loadAlerts(); })
+              .catch(err => alert('Erreur: ' + err.message));
+        }
+
+        // recherche YT depuis une alerte
+        async function searchAndImport(alertId, term) {
+            var row = document.getElementById('ytRow-' + alertId);
+            var results = document.getElementById('ytResults-' + alertId);
+            row.style.display = '';
+            results.innerHTML = '<div class="yt-loading"><i class="fas fa-spinner fa-spin"></i> Recherche YouTube pour "' + escapeHtml(term) + '"...</div>';
+
+            // marquer en cours (sans recharger la table)
+            silentSetAlertStatus(alertId, 'in_progress');
+
+            try {
+                var resp = await fetch('/api/yt-search?q=' + encodeURIComponent(term));
+                var data = await resp.json();
+
+                if (!data || !data.length) {
+                    results.innerHTML = '<div class="yt-loading">Aucun resultat YouTube. <button class="btn-sm btn-outline" onclick="setAlertStatus(' + alertId + ', \'unavailable\')">Marquer indisponible</button></div>';
+                    return;
+                }
+
+                window._ytResultUrls = window._ytResultUrls || {};
+                results.innerHTML = '<div class="alert-yt-list">' + data.map((r, i) => {
+                    var btnId = 'ytImport-' + alertId + '-' + i;
+                    window._ytResultUrls[btnId] = r.url;
+                    return `
+                    <div class="yt-result-card">
+                        <div class="yt-result-thumb">
+                            ${r.thumbnail ? '<img src="' + escapeHtml(r.thumbnail) + '" alt="">' : '<div class="yt-thumb-ph"><i class="fas fa-music"></i></div>'}
+                        </div>
+                        <div class="yt-result-info">
+                            <div class="yt-result-title">${escapeHtml(r.title)}</div>
+                            <div class="yt-result-channel">${escapeHtml(r.channel)} · ${fmtDuration(r.duration)}</div>
+                        </div>
+                        <button class="btn btn-accent btn-sm" id="${btnId}" data-alert="${alertId}">
+                            <i class="fas fa-download"></i> Importer + Traiter
+                        </button>
+                    </div>`;
+                }).join('') + '</div>';
+
+                // bind les boutons d'import
+                results.querySelectorAll('button[id^="ytImport-"]').forEach(btn => {
+                    btn.addEventListener('click', () => {
+                        var url = window._ytResultUrls[btn.id];
+                        importFromAlert(parseInt(btn.dataset.alert), url, btn);
+                    });
+                });
+            } catch (err) {
+                results.innerHTML = '<div class="yt-loading">Erreur: ' + escapeHtml(err.message) + '</div>';
+            }
+        }
+
+        async function silentSetAlertStatus(alertId, status) {
+            try {
+                await fetch('/api/admin/alerts/' + alertId + '/status', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ status })
+                });
+            } catch {}
+        }
+
+        function fmtDuration(sec) {
+            if (!sec) return '';
+            var m = Math.floor(sec / 60);
+            var s = sec % 60;
+            return m + ':' + String(s).padStart(2, '0');
+        }
+
+        async function importFromAlert(alertId, url, btn) {
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Telechargement...';
+
+            try {
+                // 1. download
+                var dlResp = await fetch('/api/yt-download', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url })
+                });
+                var dlData = await dlResp.json();
+                if (!dlResp.ok) throw new Error(dlData.error || 'Telechargement echoue');
+
+                btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Separation + Transcription...';
+
+                // 2. lancer separation + transcription en parallele
+                if (dlData.song_id) {
+                    await Promise.all([
+                        fetch('/api/separate/' + dlData.song_id, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                            body: JSON.stringify({})
+                        }),
+                        fetch('/api/transcribe/' + dlData.song_id, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                            body: JSON.stringify({ model: 'base' })
+                        })
+                    ]);
+                }
+
+                // 3. marquer comme ajoutée
+                await setAlertStatus(alertId, 'added');
+
+                btn.innerHTML = '<i class="fas fa-check"></i> Importe !';
+                btn.style.background = '#1DB954';
+                setTimeout(loadAlerts, 1500);
+
+            } catch (err) {
+                btn.innerHTML = '<i class="fas fa-times"></i> Echec';
+                btn.style.background = '#e91429';
+                setTimeout(() => { btn.innerHTML = '<i class="fas fa-download"></i> Importer + Traiter'; btn.disabled = false; btn.style.background = ''; }, 3000);
+            }
+        }
+
+        async function setAlertStatus(alertId, status) {
+            try {
+                var resp = await fetch('/api/admin/alerts/' + alertId + '/status', {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ status })
+                });
+                if (resp.ok) loadAlerts();
+                else resp.json().then(d => alert(d.error));
+            } catch (err) { alert('Erreur: ' + err.message); }
+        }
+
+        // filter chips
+        document.addEventListener('click', (e) => {
+            var chip = e.target.closest('.filter-chip');
+            if (!chip) return;
+            document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
+            chip.classList.add('active');
+            renderAlerts(chip.dataset.filter);
+        });
+
+        document.addEventListener('DOMContentLoaded', loadAlerts);
+
+        // SSE pour les mises a jour temps reel
+        function startSSE() {
+            try {
+                var evt = new EventSource('/admin/stream');
+                evt.onmessage = function(e) {
+                    try {
+                        var msg = JSON.parse(e.data);
+                        if (msg.type === 'alert.new') {
+                            showToast('Nouvelle alerte : "' + (msg.data.term || '') + '"', 'info', 'fa-bell');
+                            loadAlerts();
+                        } else if (msg.type === 'alert.update') {
+                            loadAlerts();
+                        } else if (msg.type === 'job.done') {
+                            var t = msg.data.type;
+                            var title = msg.data.title || '';
+                            showToast((t === 'separate' ? 'Séparation terminée' : 'Paroles prêtes') + (title ? ' : ' + title : ''), 'success', t === 'separate' ? 'fa-cut' : 'fa-align-left');
+                        } else if (msg.type === 'job.failed') {
+                            showToast('Job échoué', 'error', 'fa-times-circle');
+                        }
+                    } catch {}
+                };
+                evt.onerror = () => { evt.close(); setTimeout(startSSE, 5000); };
+            } catch {}
+        }
+
+        function showToast(message, type, icon) {
+            var container = document.getElementById('toastContainer');
+            if (!container) {
+                container = document.createElement('div');
+                container.id = 'toastContainer';
+                container.className = 'toast-container';
+                document.body.appendChild(container);
+            }
+            var t = document.createElement('div');
+            t.className = 'toast toast-' + (type || 'info');
+            t.innerHTML = '<i class="fas ' + (icon || 'fa-info-circle') + '"></i> <span>' + escapeHtml(message) + '</span>';
+            container.appendChild(t);
+            requestAnimationFrame(() => t.classList.add('show'));
+            setTimeout(() => {
+                t.classList.remove('show');
+                setTimeout(() => t.remove(), 300);
+            }, 4500);
+        }
+
+        startSSE();
+    </script>
+</body>
+</html>

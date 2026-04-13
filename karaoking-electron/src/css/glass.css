@@ -1,0 +1,178 @@
+/* utilitaires liquid glass */
+
+.glass {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(28px) saturate(1.6);
+    backdrop-filter: blur(28px) saturate(1.6);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass);
+}
+
+.glass-strong {
+    background: var(--glass-strong);
+    -webkit-backdrop-filter: blur(40px) saturate(1.8);
+    backdrop-filter: blur(40px) saturate(1.8);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-glass);
+}
+
+.glass-card {
+    background: var(--glass);
+    -webkit-backdrop-filter: blur(24px) saturate(1.5);
+    backdrop-filter: blur(24px) saturate(1.5);
+    border: 1px solid var(--glass-border);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-glass);
+    transition: transform var(--dur) var(--ease),
+                box-shadow var(--dur) var(--ease),
+                border-color var(--dur) var(--ease);
+}
+.glass-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--accent-soft);
+    box-shadow: var(--shadow-glass), 0 0 0 1px var(--accent-soft), var(--shadow-glow);
+}
+
+/* boutons */
+.btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 10px 18px;
+    border-radius: var(--radius);
+    border: 1px solid var(--glass-border);
+    background: var(--glass);
+    color: var(--text);
+    font-family: var(--font);
+    font-size: var(--fs-label);
+    font-weight: 600;
+    cursor: pointer;
+    transition: all var(--dur-fast) var(--ease);
+    -webkit-backdrop-filter: blur(20px);
+    backdrop-filter: blur(20px);
+}
+.btn:hover { background: var(--glass-strong); border-color: var(--accent-soft); }
+
+.btn-primary {
+    background: var(--accent);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 6px 24px var(--accent-glow);
+}
+.btn-primary:hover {
+    background: #8a5dff;
+    box-shadow: 0 8px 32px var(--accent-glow);
+    transform: translateY(-1px);
+}
+
+.btn-ghost { background: transparent; border-color: transparent; }
+.btn-ghost:hover { background: var(--glass); }
+
+/* skeletons — shimmer au lieu de spinners */
+@keyframes glass-shimmer {
+    0%   { background-position: -400px 0; }
+    100% { background-position: 400px 0; }
+}
+
+.skeleton {
+    background: linear-gradient(90deg, var(--surface) 0%, var(--surface-hover) 50%, var(--surface) 100%);
+    background-size: 800px 100%;
+    animation: glass-shimmer 1.4s linear infinite;
+    border-radius: var(--radius);
+    color: transparent;
+    pointer-events: none;
+}
+
+.skeleton-cover { width: 100%; aspect-ratio: 1; border-radius: var(--radius-lg); }
+.skeleton-line  { height: 12px; border-radius: 6px; margin: 6px 0; }
+.skeleton-line.sm { height: 10px; width: 60%; }
+
+/* etats paroles karaoke */
+.lyr-line {
+    font-family: var(--font);
+    font-weight: 500;
+    line-height: 1.35;
+    text-align: center;
+    transition: opacity var(--dur) var(--ease),
+                transform var(--dur) var(--ease),
+                font-size var(--dur) var(--ease),
+                color var(--dur) var(--ease),
+                text-shadow var(--dur) var(--ease);
+    will-change: opacity, transform;
+}
+
+.lyr-past {
+    font-size: var(--fs-lyric-inactive);
+    opacity: 0.20; color: var(--text);
+}
+.lyr-prev {
+    font-size: var(--fs-lyric-prev);
+    opacity: 0.50; color: var(--text);
+}
+.lyr-active {
+    font-size: var(--fs-lyric-active);
+    font-weight: 800; opacity: 1;
+    color: var(--text);
+    text-shadow: 0 0 24px var(--accent-glow), 0 0 8px rgba(255, 255, 255, 0.35);
+}
+.lyr-next {
+    font-size: var(--fs-lyric-next);
+    opacity: 0.60; color: var(--text);
+}
+
+.lyr-word {
+    display: inline-block;
+    transition: color var(--dur-fast) var(--ease),
+                transform var(--dur-fast) var(--ease),
+                text-shadow var(--dur-fast) var(--ease);
+}
+.lyr-word.active {
+    color: var(--accent-2);
+    transform: scale(1.05);
+    text-shadow: 0 0 16px var(--accent-2-glow);
+}
+.lyr-word.sung { color: var(--text); }
+
+/* mode projection — fond noir, paroles geantes */
+.lyr-projection .lyr-active {
+    font-size: clamp(36px, 6vw, 64px);
+    text-shadow: 0 0 32px rgba(255, 255, 255, 0.4);
+}
+.lyr-projection { background: #000 !important; }
+
+/* degrade adaptatif fond player (extrait pochette) */
+.adaptive-bg {
+    position: absolute;
+    inset: 0;
+    background:
+        radial-gradient(120% 80% at 30% 20%,
+            var(--cover-c1, #2A1A4E) 0%, transparent 60%),
+        radial-gradient(120% 80% at 70% 80%,
+            var(--cover-c2, #1A2A4E) 0%, transparent 60%),
+        var(--bg);
+    transition: background 600ms var(--ease);
+    z-index: 0;
+}
+.adaptive-bg::after {
+    content: '';
+    position: absolute; inset: 0;
+    backdrop-filter: blur(40px) saturate(1.4);
+    -webkit-backdrop-filter: blur(40px) saturate(1.4);
+    background: linear-gradient(180deg, rgba(13, 13, 26, 0.0) 0%, rgba(13, 13, 26, 0.35) 100%);
+}
+
+/* animation respire pochette en lecture */
+@keyframes cover-breathe {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.03); }
+}
+.cover-breathe { animation: cover-breathe 4.2s ease-in-out infinite; }
+
+/* microinteractions */
+@keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 0 0 var(--accent-glow); }
+    50%      { box-shadow: 0 0 0 12px transparent; }
+}
+.pulse { animation: pulse-glow 1.8s var(--ease) infinite; }
+
+/* scrollbars discretes */
+.scroll-hidden { scrollbar-width: none; -ms-overflow-style: none; }
+.scroll-hidden::-webkit-scrollbar { display: none; }

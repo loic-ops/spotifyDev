@@ -1,54 +1,106 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, session } = require('electron');
 const path = require('node:path');
 const fs = require('node:fs');
 
 if (require('electron-squirrel-startup')) app.quit();
 
 let mainWindow;
-const configPath = path.join(app.getPath('userData'), 'server-config.json');
+let savedServerUrl = '';
+const cfgPath = path.join(app.getPath('userData'), 'server-config.json');
 
 function getConfig() {
     try {
-        if (fs.existsSync(configPath)) return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
-    } catch { /* ignore */ }
+        if (fs.existsSync(cfgPath)) return JSON.parse(fs.readFileSync(cfgPath, 'utf-8'));
+    } catch { /* corrupt file, whatever */ }
     return { serverUrl: '' };
 }
 
-function saveConfig(config) {
-    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+const saveConfig = (config) => fs.writeFileSync(cfgPath, JSON.stringify(config, null, 2));
+
+// securite: on valide les URLs entrantes
+function isValidServerUrl(url) {
+    try {
+        const parsed = new URL(url);
+        return ['http:', 'https:'].includes(parsed.protocol);
+    } catch {
+        return false;
+    }
 }
 
+function sanitizeEndpoint(endpoint) {
+    // seulement /api/* — pas de path traversal
+    if (!endpoint.startsWith('/api/')) return null;
+    if (endpoint.includes('..')) return null;
+    return endpoint;
+}
+
+// SPA mode: on charge juste app.html apres connect
+const VALID_PAGES = ['app'];
+
+// window
 const createWindow = () => {
     mainWindow = new BrowserWindow({
-        width: 1000,
-        height: 650,
-        minWidth: 800,
-        minHeight: 550,
+        width: 1000, height: 650,
+        minWidth: 800, minHeight: 550,
         titleBarStyle: 'hiddenInset',
         backgroundColor: '#0a0a1a',
         webPreferences: {
             preload: path.join(__dirname, 'preload.js'),
             contextIsolation: true,
-            nodeIntegration: false
+            nodeIntegration: false,
+            sandbox: true,
+            webSecurity: true,
+            nodeIntegrationInSubFrames: false,
+            contextIsolationInSubFrames: true,
+            enablePreferredSizeMode: true
         }
     });
+
+    // empecher navigation externe
+    mainWindow.webContents.on('will-navigate', (event, url) => {
+        const parsed = new URL(url);
+        if (parsed.protocol === 'file:') return;
+        if (savedServerUrl && url.startsWith(savedServerUrl)) return;
+        event.preventDefault();
+    });
+
+    // pas de popups
+    mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+
     mainWindow.loadFile(path.join(__dirname, 'connect.html'));
+
+    // dev shortcuts: reload + devtools
+    mainWindow.webContents.on('before-input-event', (event, input) => {
+        if ((input.meta || input.control) && input.key === 'r') {
+            mainWindow.webContents.reload();
+            event.preventDefault();
+        }
+        if ((input.meta || input.control) && input.shift && (input.key === 'I' || input.key === 'i')) {
+            mainWindow.webContents.toggleDevTools();
+            event.preventDefault();
+        }
+    });
 };
 
-// ─── IPC: Server connection ──────────────────────────────────────────────────
-
+// ipc: connexion serveur
 ipcMain.handle('server:connect', async (_, url) => {
     let serverUrl = url.trim().replace(/\/+$/, '');
     if (!serverUrl.startsWith('http')) serverUrl = `http://${serverUrl}`;
 
+    if (!isValidServerUrl(serverUrl)) {
+        return { success: false, error: 'Adresse invalide' };
+    }
+
     try {
         const resp = await fetch(`${serverUrl}/api/songs`, { signal: AbortSignal.timeout(5000) });
         if (!resp.ok) return { success: false, error: 'Serveur inaccessible' };
+
+        savedServerUrl = serverUrl;
         saveConfig({ serverUrl });
-        // Navigate to home
+
         mainWindow.setSize(1200, 800);
         mainWindow.center();
-        mainWindow.loadFile(path.join(__dirname, 'pages/home.html'));
+        mainWindow.loadFile(path.join(__dirname, 'pages/app.html'));
         return { success: true };
     } catch {
         return { success: false, error: "Impossible de joindre le serveur. Verifiez l'adresse." };
@@ -57,14 +109,37 @@ ipcMain.handle('server:connect', async (_, url) => {
 
 ipcMain.handle('server:getSaved', () => getConfig());
 
-// ─── IPC: API Proxy (fetch from server on behalf of renderer) ────────────────
-
+// proxy api
 ipcMain.handle('api:fetch', async (_, endpoint) => {
     const { serverUrl } = getConfig();
     if (!serverUrl) return null;
+
+    const safe = sanitizeEndpoint(endpoint);
+    if (!safe) return null;
+
     try {
-        const resp = await fetch(`${serverUrl}${endpoint}`, { signal: AbortSignal.timeout(10000) });
+        const resp = await fetch(`${serverUrl}${safe}`, { signal: AbortSignal.timeout(10000) });
         if (!resp.ok) return null;
+        return await resp.json();
+    } catch {
+        return null;
+    }
+});
+
+ipcMain.handle('api:post', async (_, endpoint, body) => {
+    const { serverUrl } = getConfig();
+    if (!serverUrl) return null;
+
+    const safe = sanitizeEndpoint(endpoint);
+    if (!safe) return null;
+
+    try {
+        const resp = await fetch(`${serverUrl}${safe}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(body),
+            signal: AbortSignal.timeout(300000)  // 5min pour les gros downloads
+        });
         return await resp.json();
     } catch {
         return null;
@@ -73,21 +148,24 @@ ipcMain.handle('api:fetch', async (_, endpoint) => {
 
 ipcMain.handle('api:audioUrl', (_, songId, trackType) => {
     const { serverUrl } = getConfig();
+    if (!serverUrl) return '';
+    if (!/^[a-f0-9-]{36}$/i.test(songId)) return '';
+    if (!['original', 'instrumental', 'vocals'].includes(trackType)) return '';
     return `${serverUrl}/api/audio/${songId}/${trackType}`;
 });
 
 ipcMain.handle('api:coverUrl', (_, songId) => {
     const { serverUrl } = getConfig();
+    if (!serverUrl) return '';
+    if (!/^[a-f0-9-]{36}$/i.test(songId)) return '';
     return `${serverUrl}/api/cover/${songId}`;
 });
 
-ipcMain.handle('api:serverUrl', () => {
-    return getConfig().serverUrl;
-});
+ipcMain.handle('api:serverUrl', () => getConfig().serverUrl);
 
-// ─── IPC: Navigation ─────────────────────────────────────────────────────────
-
+// nav
 ipcMain.handle('nav:goto', (_, page) => {
+    if (!VALID_PAGES.includes(page)) return;
     mainWindow.loadFile(path.join(__dirname, `pages/${page}.html`));
 });
 
@@ -97,9 +175,29 @@ ipcMain.handle('nav:connect', () => {
     mainWindow.loadFile(path.join(__dirname, 'connect.html'));
 });
 
-// ─── App lifecycle ───────────────────────────────────────────────────────────
-
+// lifecycle
 app.whenReady().then(() => {
+    savedServerUrl = getConfig().serverUrl;
+
+    // CSP restrictive au niveau session
+    session.defaultSession.webRequest.onHeadersReceived((details, callback) => {
+        callback({
+            responseHeaders: {
+                ...details.responseHeaders,
+    'Content-Security-Policy': [
+                    "default-src 'self'; " +
+                    "script-src 'self' 'unsafe-inline'; " +
+                    "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; " +
+                    "font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; " +
+                    "img-src * data: blob:; " +
+                    "media-src * data: blob:; " +
+                    `connect-src 'self' ${savedServerUrl || 'http://localhost:5001'} ws://localhost:* wss://*; ` +
+                    "worker-src blob: 'self';"
+                ]
+            }
+        });
+    });
+
     createWindow();
     app.on('activate', () => {
         if (BrowserWindow.getAllWindows().length === 0) createWindow();

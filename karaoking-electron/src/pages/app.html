@@ -1,0 +1,1659 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline'; font-src 'self' https://cdnjs.cloudflare.com https://fonts.gstatic.com; style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://fonts.googleapis.com; img-src * data:; media-src *; connect-src *; worker-src 'self' blob:;">
+    <title>KARAOKING</title>
+    <link rel="stylesheet" href="../css/app.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="../vendor/Sortable.min.js"></script>
+</head>
+<body>
+    <div class="app-shell">
+        <!-- ─── Main Content (no sidebar — bottom tabbar instead) ─── -->
+        <main class="main-area">
+            <div class="main-scroll" id="mainScroll">
+
+                <!-- ─── DISCOVER (Découvrir) §5.2 ─────────────────────── -->
+                <div class="view" id="view-discover" style="display:none;">
+                    <div class="view-header">
+                        <h2>Découvrir</h2>
+                    </div>
+                    <!-- Quick search bar -->
+                    <div class="discover-quick-search glass" id="discoverQuickSearch">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="discoverSearchInput" placeholder="Recherche rapide..." class="discover-search-field">
+                    </div>
+                    <div class="discover-subnav">
+                        <button class="chip chip-active" data-discover="all">Tout</button>
+                        <button class="chip" data-discover="genres">Genres</button>
+                        <button class="chip" data-discover="artists">Artistes</button>
+                        <button class="chip" data-discover="karaoke">Karaoké</button>
+                        <button class="chip" data-discover="tops">Top 20</button>
+                    </div>
+                    <div id="discoverContent"></div>
+                </div>
+
+                <!-- ─── GAMES (Jeux) — stub MVP §7 ───────────────── -->
+                <div class="view" id="view-games" style="display:none;">
+                    <div class="view-header">
+                        <h2>Jeux</h2>
+                    </div>
+                    <div class="games-grid">
+                        <div class="glass-card game-card">
+                            <div class="game-icon"><i class="fas fa-microphone-alt"></i></div>
+                            <div class="game-title">Battle Karaoké</div>
+                            <div class="game-desc">Défie tes amis sur ta chanson préférée — vote en temps réel.</div>
+                            <div class="game-soon">Bientôt disponible</div>
+                        </div>
+                        <div class="glass-card game-card">
+                            <div class="game-icon"><i class="fas fa-question"></i></div>
+                            <div class="game-title">Quiz Musical</div>
+                            <div class="game-desc">Blind tests, complète les paroles, devine la décennie. Multi-joueurs via QR code.</div>
+                            <div class="game-soon">Bientôt disponible</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ─── LIBRARY (Bibliothèque) §5.4 ─ -->
+                <div class="view" id="view-library" style="display:none;">
+                    <div class="view-header">
+                        <h2>Ma Bibliothèque</h2>
+                    </div>
+                    <div class="library-subnav">
+                        <button class="chip chip-active" data-lib="recent">Récents</button>
+                        <button class="chip" data-lib="favorites">Favoris</button>
+                        <button class="chip" data-lib="artists">Artistes</button>
+                        <button class="chip" data-lib="songs">Morceaux</button>
+                        <button class="chip" data-lib="karaoke">Karaoké</button>
+                    </div>
+                    <div id="libraryContent"></div>
+                </div>
+
+                <!-- HOME VIEW -->
+                <div class="view" id="view-home" style="display:none;">
+                    <div class="hero-banner">
+                        <div class="hero-content">
+                            <div class="hero-badge"><i class="fas fa-microphone-alt"></i> KARAOKING</div>
+                            <h1 class="hero-title">Chantez librement,<br>vivez l'instant</h1>
+                            <p class="hero-sub">Recherchez, ecoutez et chantez vos chansons preferees.</p>
+                        </div>
+                        <div class="hero-art">
+                            <img src="../assets/logo.jpg" alt="">
+                        </div>
+                    </div>
+
+                    <!-- Prêt pour le karaoké -->
+                    <div class="section-header"><div class="section-title"><i class="fas fa-microphone-alt"></i> Pret pour le karaoke</div></div>
+                    <div class="h-scroll" id="homeKaraoke"></div>
+
+                    <!-- Recherchées récemment (§5.1 localStorage) -->
+                    <div id="homeRecentSearchSection" style="display:none;">
+                        <div class="section-header"><div class="section-title"><i class="fas fa-clock-rotate-left"></i> Recherches recentes</div></div>
+                        <div class="recent-search-chips" id="homeRecentSearches"></div>
+                    </div>
+
+                    <!-- Artistes populaires -->
+                    <div class="section-header"><div class="section-title"><i class="fas fa-users"></i> Artistes</div><button class="section-link" data-goto="artists">Voir tout</button></div>
+                    <div class="h-scroll" id="homeArtists"></div>
+
+                    <!-- Ajouts récents -->
+                    <div class="section-header"><div class="section-title"><i class="fas fa-sparkles"></i> Ajouts recents</div><button class="section-link" data-goto="recent">Voir tout</button></div>
+                    <div class="song-list" id="homeRecent"></div>
+                </div>
+
+                <!-- SEARCH VIEW -->
+                <div class="view" id="view-search">
+                    <div class="view-header">
+                        <h2>Rechercher</h2>
+                    </div>
+                    <div class="search-bar-lg">
+                        <i class="fas fa-search"></i>
+                        <input type="text" id="searchInput" class="search-input-lg" placeholder="Chansons, artistes...">
+                        <button class="search-clear" id="searchClear" style="display:none;"><i class="fas fa-times"></i></button>
+                    </div>
+                    <div id="searchContent">
+                        <div class="search-placeholder">
+                            <i class="fas fa-search"></i>
+                            <p>Recherche dans votre bibliotheque</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SONGS VIEW (Morceaux) -->
+                <div class="view" id="view-songs" style="display:none;">
+                    <div class="view-header">
+                        <h2>Morceaux</h2>
+                        <span class="view-count" id="songsCount">0</span>
+                    </div>
+                    <div class="song-list" id="songsList"></div>
+                </div>
+
+                <!-- RECENT VIEW -->
+                <div class="view" id="view-recent" style="display:none;">
+                    <div class="view-header">
+                        <h2>Ajouts recents</h2>
+                    </div>
+                    <div class="song-list" id="recentList"></div>
+                </div>
+
+                <!-- ARTISTS VIEW -->
+                <div class="view" id="view-artists" style="display:none;">
+                    <div class="view-header">
+                        <h2>Artistes</h2>
+                    </div>
+                    <div class="artists-grid" id="artistsGrid"></div>
+                </div>
+
+                <!-- KARAOKE VIEW -->
+                <div class="view" id="view-karaoke" style="display:none;">
+                    <div class="view-header">
+                        <h2>Karaoke</h2>
+                        <span class="view-count" id="karaokeCount">0</span>
+                    </div>
+                    <div class="song-list" id="karaokeList"></div>
+                </div>
+
+            </div>
+
+            <!-- ═══ KARAOKE PLAYER (Karafun-style) ═══════════════════════
+                 Fullscreen: adaptive bg + grosses paroles centrées +
+                 barre player bottom + popover Personnaliser + queue
+            -->
+            <div id="view-player" class="fullplayer" hidden>
+                <div class="adaptive-bg" id="adaptiveBg"></div>
+
+                <!-- Announcer overlay (queue transitions only) -->
+                <div class="announcer-overlay" id="announcerOverlay" hidden>
+                    <div class="announcer-content">
+                        <div class="announcer-next">Prochain morceau</div>
+                        <div class="announcer-title" id="announcerTitle"></div>
+                        <div class="announcer-artist" id="announcerArtist"></div>
+                    </div>
+                </div>
+
+                <!-- Close button (top-left) -->
+                <button class="fullplayer-close" id="fullplayerClose" title="Reduire">
+                    <i class="fas fa-chevron-down"></i>
+                </button>
+
+                <!-- ─── LYRICS ZONE (centre, plein ecran) ─── -->
+                <div class="kara-lyrics-zone">
+                    <div class="lyrics-container" id="lyricsContainer">
+                        <div class="lyrics-spacer"></div>
+                        <p class="lyrics-placeholder">Selectionnez une chanson</p>
+                        <div class="lyrics-spacer"></div>
+                    </div>
+                </div>
+
+                <!-- ─── PLAYER BAR BOTTOM (Karafun-style) ─── -->
+                <div class="kara-bottom">
+                    <div class="kara-player-bar">
+                        <!-- Cover + info -->
+                        <div class="kara-song-info">
+                            <div class="kara-cover" id="playerFullCover">
+                                <div class="cover-ph-lg"><i class="fas fa-music"></i></div>
+                            </div>
+                            <div class="kara-meta">
+                                <div class="kara-title" id="playerFullTitle">-</div>
+                                <div class="kara-artist" id="playerFullArtist">-</div>
+                            </div>
+                        </div>
+
+                        <!-- Controls -->
+                        <div class="kara-controls">
+                            <button class="kara-ctrl-btn" id="fpBtnPrev"><i class="fas fa-backward-step"></i></button>
+                            <button class="kara-ctrl-btn kara-play-btn" id="fpBtnPlay"><i class="fas fa-pause" id="fpPlayIcon"></i></button>
+                            <button class="kara-ctrl-btn" id="fpBtnNext"><i class="fas fa-forward-step"></i></button>
+                        </div>
+
+                        <!-- Progress -->
+                        <div class="kara-progress">
+                            <span class="kara-time" id="fpTimeCur">0:00</span>
+                            <div class="kara-bar" id="fpBar">
+                                <div class="kara-bar-fill" id="fpBarFill"></div>
+                            </div>
+                            <span class="kara-time" id="fpTimeRemain">-0:00</span>
+                        </div>
+
+                        <!-- Personnaliser button -->
+                        <button class="kara-custom-btn" id="customizeBtn">
+                            <i class="fas fa-sliders-h"></i> Personnaliser
+                        </button>
+                    </div>
+
+                    <!-- ─── PERSONNALISER POPOVER ─── -->
+                    <div class="kara-popover" id="customizePopover" hidden>
+                        <div class="kara-pop-title">Volumes</div>
+                        <div class="kara-pop-row">
+                            <span class="kara-pop-label">Choeurs (Voix)</span>
+                            <input type="range" id="fpSliderVocals" min="0" max="100" value="100" class="kara-slider kara-slider-vocals">
+                        </div>
+                        <div class="kara-pop-row">
+                            <span class="kara-pop-label">Guide vocal</span>
+                            <input type="range" id="fpSliderInstrumental" min="0" max="100" value="100" class="kara-slider kara-slider-instru">
+                        </div>
+                        <div class="kara-pop-divider"></div>
+                        <div class="kara-pop-row">
+                            <span class="kara-pop-label">Tonalite</span>
+                            <div class="kara-pop-stepper">
+                                <button class="pt-btn" data-pitch="-1">-</button>
+                                <span class="pt-value" id="pitchValue">0</span>
+                                <button class="pt-btn" data-pitch="+1">+</button>
+                            </div>
+                        </div>
+                        <div class="kara-pop-row">
+                            <span class="kara-pop-label">Tempo</span>
+                            <div class="kara-pop-stepper">
+                                <button class="pt-btn" data-tempo="-5">-</button>
+                                <span class="pt-value" id="tempoValue">100%</span>
+                                <button class="pt-btn" data-tempo="+5">+</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- ─── FILE D'ATTENTE (bottom panel) ─── -->
+                    <div class="kara-queue-bar">
+                        <div class="kara-queue-header">
+                            <span><i class="fas fa-list"></i> File d'attente</span>
+                            <span class="kara-queue-count" id="queueCount">0 chanson</span>
+                        </div>
+                        <div class="kara-queue-list" id="queueList"></div>
+                        <div class="kara-queue-empty" id="queueEmpty">
+                            <p>Votre file d'attente est vide.</p>
+                            <small>Ajoutez des chansons depuis la bibliotheque.</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ─── Mini-Player (§6.1) — Liquid Glass persistant ──── -->
+            <div class="player-bar miniplayer glass-strong" id="playerBar">
+                <!-- Left: Song info -->
+                <div class="pb-info" id="pbInfo">
+                    <div class="pb-cover" id="pbCover">
+                        <div class="pb-cover-ph"><i class="fas fa-music"></i></div>
+                    </div>
+                    <div class="pb-text">
+                        <div class="pb-title" id="pbTitle">Aucune chanson</div>
+                        <div class="pb-artist" id="pbArtist">-</div>
+                    </div>
+                </div>
+
+                <!-- Center: Controls + progress -->
+                <div class="pb-center">
+                    <div class="pb-controls">
+                        <button class="pb-btn" id="btnPrev" title="Precedent"><i class="fas fa-backward-step"></i></button>
+                        <button class="pb-btn pb-btn-sm" id="btnBack10" title="-10s"><i class="fas fa-rotate-left"></i><span class="seek-lbl">10</span></button>
+                        <button class="pb-btn pb-btn-play" id="btnPlay"><i class="fas fa-play" id="playIcon"></i></button>
+                        <button class="pb-btn pb-btn-sm" id="btnFwd10" title="+10s"><i class="fas fa-rotate-right"></i><span class="seek-lbl">10</span></button>
+                        <button class="pb-btn" id="btnNext" title="Suivant"><i class="fas fa-forward-step"></i></button>
+                    </div>
+                    <div class="pb-progress">
+                        <span class="pb-time" id="pbTimeCur">0:00</span>
+                        <div class="pb-bar" id="pbBar">
+                            <div class="pb-bar-fill" id="pbBarFill"></div>
+                        </div>
+                        <span class="pb-time" id="pbTimeTotal">0:00</span>
+                    </div>
+                </div>
+
+                <!-- Right: Volume / Track sliders -->
+                <div class="pb-right">
+                    <div class="pb-tracks">
+                        <div class="pb-track-control">
+                            <i class="fas fa-microphone" title="Voix"></i>
+                            <input type="range" id="sliderVocals" min="0" max="100" value="100" class="pb-slider">
+                        </div>
+                        <div class="pb-track-control">
+                            <i class="fas fa-guitar" title="Instrumental"></i>
+                            <input type="range" id="sliderInstrumental" min="0" max="100" value="100" class="pb-slider">
+                        </div>
+                    </div>
+                    <button class="pb-btn pb-btn-lyrics" id="btnLyrics" title="Paroles"><i class="fas fa-align-left"></i></button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- ─── Bottom Tab Bar (5 onglets — §5 Cahier des Charges) ──────── -->
+    <nav class="tabbar glass-strong" id="tabbar">
+        <button class="tab" data-tab="home" data-hash="#/home">
+            <i class="fas fa-house"></i><span>Accueil</span>
+        </button>
+        <button class="tab" data-tab="discover" data-hash="#/discover">
+            <i class="fas fa-compass"></i><span>Découvrir</span>
+        </button>
+        <button class="tab" data-tab="games" data-hash="#/games">
+            <i class="fas fa-trophy"></i><span>Jeux</span>
+        </button>
+        <button class="tab" data-tab="library" data-hash="#/library">
+            <i class="fas fa-bookmark"></i><span>Bibliothèque</span>
+        </button>
+        <button class="tab" data-tab="search" data-hash="#/search">
+            <i class="fas fa-magnifying-glass"></i><span>Recherche</span>
+        </button>
+    </nav>
+
+    <script type="module">
+    // ════════════════════════════════════════════════════════════════════════════
+    // THEME — Electron client = dark only (§4.1). Light mode supprimé.
+    // ════════════════════════════════════════════════════════════════════════════
+    document.documentElement.setAttribute('data-theme', 'dark');
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // STATE
+    // ════════════════════════════════════════════════════════════════════════════
+    let songs = [];
+    let currentSong = null;
+    let isPlaying = false;
+    let currentView = 'search';
+    let lyrics = [];
+    let wordTimings = [];
+    let currentLineIndex = -1;
+    let isSeeking = false;
+    let playToken = 0;
+
+    // ─── AudioEngine singleton ─────────────────────────────────────────────────
+    import audioEngine from '../renderer/audio/engine.js';
+
+    function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+    function fmt(s) { return (s||'').replace(/_/g,' ').replace(/\s*-\s*/g,' - ').trim(); }
+    function fmtTime(sec) { if (!sec || isNaN(sec)) return '0:00'; const m=Math.floor(sec/60); const s2=Math.floor(sec%60); return `${m}:${String(s2).padStart(2,'0')}`; }
+    function fmtDur(sec) { return fmtTime(sec); }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // NAVIGATION — 5 onglets (§5) + hash routing + fullscreen player overlay
+    // ════════════════════════════════════════════════════════════════════════════
+    // Onglets spec : home / discover / games / library / search.
+    // Vues internes (recent/artists/songs/karaoke) sont rendues à l'intérieur de
+    // `view-library` ou `view-discover` via leur sub-nav. Elles existent encore
+    // comme conteneurs DOM mais ne sont plus exposées dans la tabbar.
+    const TABS = ['home', 'discover', 'games', 'library', 'search'];
+
+    function showView(tab) {
+        if (!TABS.includes(tab)) tab = 'home';
+        currentView = tab;
+        document.querySelectorAll('.view').forEach(v => v.style.display = 'none');
+        const el = document.getElementById(`view-${tab}`);
+        if (el) el.style.display = '';
+
+        document.querySelectorAll('.tab[data-tab]').forEach(n => {
+            n.classList.toggle('active', n.dataset.tab === tab);
+        });
+
+        document.getElementById('mainScroll').scrollTop = 0;
+
+        // Render tab content
+        if (tab === 'home') renderHome();
+        else if (tab === 'discover') renderDiscover();
+        else if (tab === 'library') renderLibrary();
+        // games = static stub, search = bound on input
+    }
+
+    // ─── Hash router ─────────────────────────────────────────────────────
+    function tabFromHash() {
+        const m = (window.location.hash || '').match(/^#\/(\w+)/);
+        return m ? m[1] : 'home';
+    }
+
+    function navigate(tab) {
+        if (window.location.hash !== `#/${tab}`) {
+            window.location.hash = `#/${tab}`;
+        } else {
+            showView(tab);
+        }
+    }
+
+    window.addEventListener('hashchange', () => showView(tabFromHash()));
+
+    document.querySelectorAll('.tab[data-tab]').forEach(btn => {
+        btn.addEventListener('click', () => navigate(btn.dataset.tab));
+    });
+
+    // Legacy [data-goto] in templates → map to navigate()
+    document.querySelectorAll('[data-goto]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const dest = btn.dataset.goto;
+            if (TABS.includes(dest)) navigate(dest);
+            else if (dest === 'recent') { navigate('library'); setLibrarySection('recent'); }
+            else if (dest === 'artists') { navigate('library'); setLibrarySection('artists'); }
+            else if (dest === 'songs') { navigate('library'); setLibrarySection('songs'); }
+            else if (dest === 'karaoke') { navigate('library'); setLibrarySection('karaoke'); }
+        });
+    });
+
+    // ─── Fullscreen player overlay (§6) ──────────────────────────────────
+    const fullPlayerEl = document.getElementById('view-player');
+    const fullPlayerCloseBtn = document.getElementById('fullplayerClose');
+
+    function openFullPlayer() {
+        if (!currentSong) return;
+        fullPlayerEl.hidden = false;
+        requestAnimationFrame(() => fullPlayerEl.classList.add('open'));
+        document.body.classList.add('fullplayer-open');
+    }
+
+    function closeFullPlayer() {
+        fullPlayerEl.classList.remove('open');
+        document.body.classList.remove('fullplayer-open');
+        setTimeout(() => { fullPlayerEl.hidden = true; }, 320);
+    }
+
+    fullPlayerCloseBtn.addEventListener('click', closeFullPlayer);
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && fullPlayerEl.classList.contains('open')) closeFullPlayer();
+    });
+
+    // Click sur le mini-player (zone info) ouvre le full player overlay
+    document.getElementById('pbInfo').addEventListener('click', () => {
+        if (currentSong) openFullPlayer();
+    });
+
+    // Trackpad swipe up/down → open/close fullplayer (macOS gesture)
+    let _swipeAccum = 0;
+    let _swipeTimer = null;
+    document.addEventListener('wheel', (e) => {
+        // Only handle vertical swipe on the fullplayer or miniplayer
+        if (e.deltaX !== 0) return; // ignore horizontal
+        _swipeAccum += e.deltaY;
+        clearTimeout(_swipeTimer);
+        _swipeTimer = setTimeout(() => { _swipeAccum = 0; }, 300);
+
+        if (_swipeAccum < -120 && fullPlayerEl.classList.contains('open')) {
+            closeFullPlayer();
+            _swipeAccum = 0;
+        } else if (_swipeAccum > 120 && !fullPlayerEl.classList.contains('open') && currentSong) {
+            openFullPlayer();
+            _swipeAccum = 0;
+        }
+    }, { passive: true });
+
+    // ─── Library sub-nav ─────────────────────────────────────────────────
+    let librarySection = 'recent';
+    function setLibrarySection(section) {
+        librarySection = section;
+        document.querySelectorAll('.library-subnav .chip').forEach(c => {
+            c.classList.toggle('chip-active', c.dataset.lib === section);
+        });
+        renderLibrary();
+    }
+    document.querySelectorAll('.library-subnav .chip').forEach(c => {
+        c.addEventListener('click', () => setLibrarySection(c.dataset.lib));
+    });
+
+    async function renderLibrary() {
+        const host = document.getElementById('libraryContent');
+        if (librarySection === 'recent') {
+            host.innerHTML = '<div class="song-list" id="recentList"></div>';
+            await renderRecent();
+        } else if (librarySection === 'favorites') {
+            host.innerHTML = '<div class="song-list" id="favoritesList"></div>';
+            await renderFavorites();
+        } else if (librarySection === 'artists') {
+            host.innerHTML = '<div class="artists-grid" id="artistsGrid"></div>';
+            await renderArtists();
+        } else if (librarySection === 'songs') {
+            host.innerHTML = '<div class="view-header"><h2 style="font-size:18px">Morceaux</h2><span class="view-count" id="songsCount">0</span></div><div class="song-list" id="songsList"></div>';
+            await renderSongs();
+        } else if (librarySection === 'karaoke') {
+            host.innerHTML = '<div class="view-header"><h2 style="font-size:18px">Karaoké</h2><span class="view-count" id="karaokeCount">0</span></div><div class="song-list" id="karaokeList"></div>';
+            await renderKaraoke();
+        }
+    }
+
+    // ─── Discover sub-nav (stub M2 — étoffé en M4) ───────────────────────
+    let discoverSection = 'all';
+    function setDiscoverSection(section) {
+        discoverSection = section;
+        document.querySelectorAll('.discover-subnav .chip').forEach(c => {
+            c.classList.toggle('chip-active', c.dataset.discover === section);
+        });
+        renderDiscover();
+    }
+    document.querySelectorAll('.discover-subnav .chip').forEach(c => {
+        c.addEventListener('click', () => setDiscoverSection(c.dataset.discover));
+    });
+
+    // Genre definitions (§5.2 — couleurs + emojis). Seront récupérés via API en B.M7.
+    // Default genres (fallback if API returns empty)
+    const DEFAULT_GENRES = [
+        { name: 'Afrobeat', color: '#FF6B35', emoji: '🥁' },
+        { name: 'Coupé-Décalé', color: '#FFD700', emoji: '💃' },
+        { name: 'Ndombolo', color: '#00E5FF', emoji: '🎶' },
+        { name: 'Mbalax', color: '#7C4DFF', emoji: '🪘' },
+        { name: 'Zouk', color: '#FF4081', emoji: '❤️' },
+        { name: 'Gospel', color: '#FFB300', emoji: '🙏' },
+        { name: 'Rap/Hip-Hop', color: '#B388FF', emoji: '🎤' },
+        { name: 'Rumba', color: '#00C853', emoji: '🎹' },
+        { name: 'Reggae', color: '#66BB6A', emoji: '🌿' },
+        { name: 'RnB/Soul', color: '#E040FB', emoji: '💜' },
+        { name: 'Pop', color: '#FF7043', emoji: '⭐' },
+        { name: 'Traditionnel', color: '#8D6E63', emoji: '🏠' },
+    ];
+    let GENRES = DEFAULT_GENRES;
+
+    // Fetch genres from API (B.M7) — merge with defaults
+    async function loadGenres() {
+        try {
+            const data = await window.karaoking.fetchApi('/api/genres');
+            if (Array.isArray(data) && data.length) {
+                // Use API genres (they have real IDs for DB filtering)
+                GENRES = data;
+            }
+            // If API returns nothing, keep DEFAULT_GENRES (no id → visual only)
+        } catch {}
+    }
+
+    async function renderDiscover() {
+        const host = document.getElementById('discoverContent');
+        if (discoverSection === 'genres') {
+            host.innerHTML = renderGenreGrid();
+            host.querySelectorAll('.genre-card').forEach(card => {
+                card.addEventListener('click', async () => {
+                    const genreName = card.dataset.genre;
+                    const genreId = card.dataset.id;
+                    // Filter songs by genre_id (DB FK)
+                    let filtered = [];
+                    if (genreId) {
+                        filtered = songs.filter(s => String(s.genre_id) === String(genreId));
+                    }
+                    host.innerHTML = `<div class="section-header"><div class="section-title">${esc(genreName)}</div><button class="chip" onclick="setDiscoverSection('genres')"><i class="fas fa-arrow-left"></i> Retour</button></div><div class="song-list" id="songsList"></div>`;
+                    if (filtered.length) {
+                        document.getElementById('songsList').innerHTML = await buildSongRows(filtered);
+                        bindSongRows(document.getElementById('songsList'));
+                    } else {
+                        document.getElementById('songsList').innerHTML = '<div class="empty-state"><i class="fas fa-music"></i><p>Aucune chanson dans ce genre.<br><small>L\'admin doit ajouter des chansons à ce genre depuis le catalogue.</small></p></div>';
+                    }
+                });
+            });
+        } else if (discoverSection === 'artists') {
+            host.innerHTML = '<div class="artists-grid" id="artistsGrid"></div>';
+            await renderArtists();
+        } else if (discoverSection === 'karaoke') {
+            host.innerHTML = '<div class="song-list" id="karaokeList"></div><span class="view-count" id="karaokeCount">0</span>';
+            await renderKaraoke();
+        } else if (discoverSection === 'tops') {
+            // Top 20 = most played (stub: by alphabetical for now, plays_count will come from API)
+            host.innerHTML = '<div class="section-header"><div class="section-title">Top 20</div></div><div class="song-list" id="songsList"></div><span class="view-count" id="songsCount">0</span>';
+            const top = songs.slice(0, 20);
+            document.getElementById('songsCount').textContent = top.length;
+            document.getElementById('songsList').innerHTML = await buildSongRows(top, true);
+            bindSongRows(document.getElementById('songsList'));
+        } else {
+            // 'all' — overview: genres grid + top karaoke
+            let html = renderGenreGrid();
+            html += '<div class="section-header"><div class="section-title">Top Karaoke</div></div>';
+            html += '<div class="song-list" id="songsList"></div>';
+            host.innerHTML = html;
+            const karaokeSongs = songs.filter(s => s.has_instrumental && s.has_lyrics).slice(0, 10);
+            if (karaokeSongs.length) {
+                document.getElementById('songsList').innerHTML = await buildSongRows(karaokeSongs);
+                bindSongRows(document.getElementById('songsList'));
+            } else {
+                document.getElementById('songsList').innerHTML = '<div class="empty-state"><i class="fas fa-microphone-alt"></i><p>Aucune chanson karaoke disponible</p></div>';
+            }
+            // Bind genre cards
+            host.querySelectorAll('.genre-card').forEach(card => {
+                card.addEventListener('click', () => { setDiscoverSection('genres'); });
+            });
+        }
+    }
+
+    function renderGenreGrid() {
+        return '<div class="genre-grid">' + GENRES.map(g =>
+            `<div class="genre-card glass-card" data-genre="${esc(g.name)}" data-id="${g.id != null ? g.id : ''}" style="--genre-color: ${g.color}">
+                <span class="genre-emoji">${g.emoji || '🎵'}</span>
+                <span class="genre-name">${esc(g.name)}</span>
+            </div>`
+        ).join('') + '</div>';
+    }
+
+    // Quick search in discover
+    document.getElementById('discoverSearchInput').addEventListener('input', async (e) => {
+        const q = e.target.value.trim().toLowerCase();
+        if (!q || q.length < 2) { renderDiscover(); return; }
+        const matched = songs.filter(s =>
+            s.title.toLowerCase().includes(q) || (s.artist || '').toLowerCase().includes(q)
+        );
+        const host = document.getElementById('discoverContent');
+        if (matched.length) {
+            host.innerHTML = '<div class="song-list" id="songsList"></div>';
+            document.getElementById('songsList').innerHTML = await buildSongRows(matched);
+            bindSongRows(document.getElementById('songsList'));
+        } else {
+            host.innerHTML = '<div class="empty-state"><i class="fas fa-search"></i><p>Aucun resultat</p></div>';
+        }
+    });
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // DATA LOADING
+    // ════════════════════════════════════════════════════════════════════════════
+    async function loadSongs() {
+        songs = await window.karaoking.fetchApi('/api/songs') || [];
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // HOME VIEW
+    // ════════════════════════════════════════════════════════════════════════════
+    async function renderHome() {
+        const karaokeEl = document.getElementById('homeKaraoke');
+        const recentEl = document.getElementById('homeRecent');
+        const artistsEl = document.getElementById('homeArtists');
+
+        if (!songs.length) {
+            karaokeEl.innerHTML = '';
+            recentEl.innerHTML = '<div class="empty-state"><i class="fas fa-record-vinyl"></i><p>Recherchez une chanson pour la telecharger</p></div>';
+            artistsEl.innerHTML = '';
+            return;
+        }
+
+        // ─── Karaoké-ready carousel ─────────────────────────
+        const karaokeReady = songs.filter(s => s.has_instrumental && s.has_lyrics);
+        const cardSongs = karaokeReady.length ? karaokeReady.slice(0, 12) : songs.slice(0, 12);
+        karaokeEl.innerHTML = await buildCardScroll(cardSongs);
+        karaokeEl.querySelectorAll('.song-card').forEach(c => c.addEventListener('click', () => playSong(c.dataset.id)));
+
+        // ─── Recent searches (localStorage) ─────────────────
+        renderRecentSearches();
+
+        // ─── Artists horizontal scroll ──────────────────────
+        const artistMap = {};
+        songs.forEach(s => {
+            const main = mainArtist(s.artist);
+            if (!artistMap[main]) artistMap[main] = { name: main, count: 0, songId: s.id };
+            artistMap[main].count++;
+        });
+        const topArtists = Object.values(artistMap).sort((a, b) => b.count - a.count).slice(0, 10);
+        let artistsHtml = '';
+        for (const a of topArtists) {
+            const cover = await window.karaoking.getCoverUrl(a.songId);
+            artistsHtml += `
+            <div class="artist-pill" data-artist="${esc(a.name)}">
+                <div class="artist-pill-avatar">
+                    <img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=artist-avatar-ph><i class=\\'fas fa-user\\'></i></div>'">
+                </div>
+                <div class="artist-pill-name">${esc(a.name)}</div>
+            </div>`;
+        }
+        artistsEl.innerHTML = artistsHtml || '';
+        artistsEl.querySelectorAll('.artist-pill').forEach(p => {
+            p.addEventListener('click', async () => {
+                const name = p.dataset.artist;
+                navigate('library');
+                setTimeout(() => showArtistSongs(name), 100);
+            });
+        });
+
+        // ─── Recent songs ───────────────────────────────────
+        const recentSongs = songs.slice(0, 5);
+        recentEl.innerHTML = await buildSongRows(recentSongs);
+        bindSongRows(recentEl);
+    }
+
+    // Build horizontal card scroll (reusable)
+    async function buildCardScroll(songList) {
+        let html = '';
+        for (const song of songList) {
+            const cover = await window.karaoking.getCoverUrl(song.id);
+            html += `
+            <div class="song-card" data-id="${esc(song.id)}">
+                <div class="song-card-cover">
+                    <img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=cover-ph><i class=\\'fas fa-music\\'></i></div>'">
+                    <div class="card-play-btn"><i class="fas fa-play"></i></div>
+                </div>
+                <div class="song-card-title">${esc(fmt(song.title))}</div>
+                <div class="song-card-artist">${esc(song.artist || 'Artiste inconnu')}</div>
+            </div>`;
+        }
+        return html;
+    }
+
+    // Recent searches chips (from localStorage)
+    function renderRecentSearches() {
+        const stored = JSON.parse(localStorage.getItem('karaoking-state') || '{}');
+        const searches = (stored.recentSearches || []).slice(0, 8);
+        const section = document.getElementById('homeRecentSearchSection');
+        const container = document.getElementById('homeRecentSearches');
+        if (!searches.length) { section.style.display = 'none'; return; }
+        section.style.display = '';
+        container.innerHTML = searches.map(term =>
+            `<button class="search-chip glass" data-term="${esc(term)}">${esc(term)}</button>`
+        ).join('');
+        container.querySelectorAll('.search-chip').forEach(chip => {
+            chip.addEventListener('click', () => {
+                navigate('search');
+                setTimeout(() => {
+                    const input = document.getElementById('searchInput');
+                    input.value = chip.dataset.term;
+                    input.dispatchEvent(new Event('input'));
+                }, 100);
+            });
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // SONGS VIEW (Morceaux)
+    // ════════════════════════════════════════════════════════════════════════════
+    async function renderSongs() {
+        document.getElementById('songsCount').textContent = songs.length;
+        const list = document.getElementById('songsList');
+        list.innerHTML = await buildSongRows(songs, true);
+        bindSongRows(list);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // RECENT VIEW
+    // ════════════════════════════════════════════════════════════════════════════
+    async function renderRecent() {
+        const list = document.getElementById('recentList');
+        const recent = songs.slice(0, 20);
+        list.innerHTML = await buildSongRows(recent);
+        bindSongRows(list);
+    }
+
+    async function renderFavorites() {
+        const list = document.getElementById('favoritesList');
+        const favs = getFavorites();
+        const favSongs = songs.filter(s => favs.has(s.id));
+        if (!favSongs.length) {
+            list.innerHTML = '<div class="empty-state"><i class="fas fa-star"></i><p>Aucun favori. Appuyez sur l\'etoile pour ajouter des favoris.</p></div>';
+            return;
+        }
+        list.innerHTML = await buildSongRows(favSongs);
+        bindSongRows(list);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ARTISTS VIEW
+    // ════════════════════════════════════════════════════════════════════════════
+    // Extract main artist name (before ft., feat., &, ,, x, etc.)
+    function mainArtist(artist) {
+        if (!artist) return 'Artiste inconnu';
+        return artist
+            .split(/\s+(?:ft\.?|feat\.?|featuring|x|&|,|\/)\s+/i)[0]
+            .trim() || 'Artiste inconnu';
+    }
+
+    // Check if a song belongs to an artist (main or featured)
+    function songMatchesArtist(song, artistName) {
+        const a = (song.artist || '').toLowerCase();
+        const n = artistName.toLowerCase();
+        return a.includes(n);
+    }
+
+    async function renderArtists() {
+        const grid = document.getElementById('artistsGrid');
+        const artistMap = {};
+        songs.forEach(s => {
+            const main = mainArtist(s.artist);
+            if (!artistMap[main]) artistMap[main] = { name: main, count: 0, songId: s.id };
+            artistMap[main].count++;
+        });
+
+        const artists = Object.values(artistMap).sort((a, b) => b.count - a.count);
+        let html = '';
+        for (const a of artists) {
+            const cover = await window.karaoking.getCoverUrl(a.songId);
+            html += `
+            <div class="artist-card" data-artist="${esc(a.name)}">
+                <div class="artist-avatar">
+                    <img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=artist-avatar-ph><i class=\\'fas fa-user\\'></i></div>'">
+                </div>
+                <div class="artist-name">${esc(a.name)}</div>
+                <div class="artist-count">${a.count} titre${a.count > 1 ? 's' : ''}</div>
+            </div>`;
+        }
+        grid.innerHTML = html || '<div class="empty-state"><i class="fas fa-users"></i><p>Aucun artiste</p></div>';
+
+        grid.querySelectorAll('.artist-card').forEach(card => {
+            card.addEventListener('click', async () => {
+                const name = card.dataset.artist;
+                await showArtistSongs(name);
+            });
+        });
+    }
+
+    // Show all songs for a given artist (includes features)
+    async function showArtistSongs(artistName) {
+        const filtered = songs.filter(s => songMatchesArtist(s, artistName));
+        // Replace current discover or library content with the filtered list
+        const isDiscover = currentView === 'discover';
+        const host = document.getElementById(isDiscover ? 'discoverContent' : 'libraryContent');
+        if (!host) { showView('library'); setTimeout(() => showArtistSongs(artistName), 100); return; }
+
+        host.innerHTML = `
+            <div class="section-header">
+                <div class="section-title"><i class="fas fa-user"></i> ${esc(artistName)}</div>
+                <button class="chip" id="artistBackBtn"><i class="fas fa-arrow-left"></i> Retour</button>
+            </div>
+            <div class="song-list" id="artistSongsList"></div>
+        `;
+        if (filtered.length) {
+            document.getElementById('artistSongsList').innerHTML = await buildSongRows(filtered);
+            bindSongRows(document.getElementById('artistSongsList'));
+        } else {
+            document.getElementById('artistSongsList').innerHTML = '<div class="empty-state"><i class="fas fa-music"></i><p>Aucun titre pour cet artiste</p></div>';
+        }
+        document.getElementById('artistBackBtn').addEventListener('click', () => {
+            if (isDiscover) setDiscoverSection('artists');
+            else setLibrarySection('artists');
+        });
+    }
+
+    window.showArtistSongs = showArtistSongs;
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // KARAOKE VIEW
+    // ════════════════════════════════════════════════════════════════════════════
+    async function renderKaraoke() {
+        const karSongs = songs.filter(s => s.has_instrumental && s.has_lyrics);
+        document.getElementById('karaokeCount').textContent = karSongs.length;
+        const list = document.getElementById('karaokeList');
+        if (!karSongs.length) {
+            list.innerHTML = '<div class="empty-state"><i class="fas fa-microphone-alt"></i><p>Aucune chanson prete pour le karaoke</p></div>';
+            return;
+        }
+        list.innerHTML = await buildSongRows(karSongs);
+        bindSongRows(list);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // SEARCH VIEW
+    // ════════════════════════════════════════════════════════════════════════════
+    const searchInput = document.getElementById('searchInput');
+    const searchClear = document.getElementById('searchClear');
+
+    // POST /api/search-log — appelé UNIQUEMENT sur submit explicite (Enter)
+    // pas pendant la frappe, pour ne pas spammer l'admin avec des bouts de mots
+    function logSearch(term, found) {
+        if (term && term.length >= 2) {
+            addRecentSearch(term);
+            window.karaoking.postApi('/api/search-log', { term, found }).catch(() => {});
+        }
+    }
+
+    // Filtrage local en live (sans logger)
+    searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim();
+        searchClear.style.display = q ? '' : 'none';
+        filterSearch(q, false); // false = ne pas logger
+    });
+
+    // Submit explicite (Enter) → log + recherche
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const q = searchInput.value.trim();
+            if (q.length >= 2) filterSearch(q, true); // true = logger
+        }
+    });
+
+    searchClear.addEventListener('click', () => {
+        searchInput.value = '';
+        searchClear.style.display = 'none';
+        filterSearch('', false);
+    });
+
+    async function filterSearch(query, shouldLog = false) {
+        const content = document.getElementById('searchContent');
+        if (!query) {
+            content.innerHTML = '<div class="search-placeholder"><i class="fas fa-search"></i><p>Recherche dans votre bibliotheque</p></div>';
+            return;
+        }
+
+        const q = query.toLowerCase();
+        const matched = songs.filter(s =>
+            s.title.toLowerCase().includes(q) || (s.artist || '').toLowerCase().includes(q)
+        );
+
+        let html = '';
+        if (matched.length) {
+            html += '<div class="song-list">';
+            html += await buildSongRows(matched);
+            html += '</div>';
+        }
+
+        // YouTube section
+        html += `<div class="yt-section" id="ytSection">`;
+        if (matched.length) {
+            html += `<div class="yt-hint"><span>Pas ce que vous cherchez ?</span><button class="yt-search-btn" id="ytSearchBtn"><i class="fab fa-youtube"></i> Recherche Avancee</button></div>`;
+        } else {
+            html += `<div class="yt-no-results"><i class="fas fa-search"></i><p>Aucun resultat pour « <strong>${esc(query)}</strong> »</p><button class="yt-search-btn yt-prominent" id="ytSearchBtn"><i class="fab fa-youtube"></i> Recherche Avancee</button></div>`;
+        }
+        html += '<div id="ytResults"></div></div>';
+
+        content.innerHTML = html;
+        bindSongRows(content);
+
+        // Log search ONLY on explicit submit (Enter) — pas pendant la frappe
+        if (shouldLog) {
+            logSearch(query, matched.length > 0);
+        }
+
+        document.getElementById('ytSearchBtn').addEventListener('click', () => {
+            // Le clic Recherche Avancée = aussi un signal explicite → log
+            logSearch(query, matched.length > 0);
+            searchYouTube(searchInput.value.trim());
+        });
+    }
+
+    async function searchYouTube(query) {
+        const ytResults = document.getElementById('ytResults');
+        if (!ytResults) return;
+        ytResults.innerHTML = '<div class="yt-loading"><i class="fas fa-spinner fa-spin"></i> Recherche YouTube...</div>';
+
+        const results = await window.karaoking.fetchApi(`/api/yt-search?q=${encodeURIComponent(query)}`);
+        if (!results || !results.length) {
+            ytResults.innerHTML = '<div class="yt-loading">Aucun resultat YouTube</div>';
+            return;
+        }
+
+        ytResults.innerHTML = '<div class="song-list">' + results.map(r => `
+            <div class="song-row yt-row" data-url="${esc(r.url)}">
+                <div class="sr-cover">
+                    ${r.thumbnail ? `<img src="${esc(r.thumbnail)}" alt="">` : '<div class="sr-cover-ph"><i class="fas fa-music"></i></div>'}
+                </div>
+                <div class="sr-info">
+                    <div class="sr-title">${esc(r.title)}</div>
+                    <div class="sr-artist">${esc(r.channel)} · ${fmtDur(r.duration)}</div>
+                </div>
+                <button class="yt-dl-btn" title="Telecharger"><i class="fas fa-download"></i></button>
+            </div>
+        `).join('') + '</div>';
+
+        ytResults.querySelectorAll('.yt-row').forEach(row => {
+            row.querySelector('.yt-dl-btn').addEventListener('click', (e) => {
+                e.stopPropagation();
+                downloadYt(row.dataset.url, row.querySelector('.yt-dl-btn'));
+            });
+        });
+    }
+
+    async function downloadYt(url, btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+        const data = await window.karaoking.postApi('/api/yt-download', { url });
+        if (!data || data.error) {
+            btn.innerHTML = '<i class="fas fa-times"></i>';
+            setTimeout(() => { btn.innerHTML = '<i class="fas fa-download"></i>'; btn.disabled = false; }, 3000);
+            return;
+        }
+        btn.innerHTML = '<i class="fas fa-check"></i>';
+        btn.classList.add('yt-done');
+        await loadSongs();
+        if (data.song_id) playSong(data.song_id);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // SHARED: Song Row Builder
+    // ════════════════════════════════════════════════════════════════════════════
+    // Favorites helper (localStorage-based, synced with state.js pattern)
+    function getFavorites() {
+        try { return new Set(JSON.parse(localStorage.getItem('karaoking-state') || '{}').favorites || []); } catch { return new Set(); }
+    }
+    function toggleFavorite(songId) {
+        const stored = JSON.parse(localStorage.getItem('karaoking-state') || '{}');
+        const favs = new Set(stored.favorites || []);
+        if (favs.has(songId)) favs.delete(songId); else favs.add(songId);
+        stored.favorites = Array.from(favs);
+        localStorage.setItem('karaoking-state', JSON.stringify(stored));
+        return favs.has(songId);
+    }
+
+    // Add recent search to localStorage
+    function addRecentSearch(term) {
+        const stored = JSON.parse(localStorage.getItem('karaoking-state') || '{}');
+        const searches = [term, ...(stored.recentSearches || []).filter(s => s !== term)].slice(0, 10);
+        stored.recentSearches = searches;
+        localStorage.setItem('karaoking-state', JSON.stringify(stored));
+    }
+
+    async function buildSongRows(songList, showNum = false) {
+        const favs = getFavorites();
+        let html = '';
+        for (let i = 0; i < songList.length; i++) {
+            const s = songList[i];
+            const cover = await window.karaoking.getCoverUrl(s.id);
+            const isK = s.has_instrumental && s.has_lyrics;
+            const playing = currentSong && currentSong.id === s.id;
+            const isFav = favs.has(s.id);
+            html += `
+            <div class="song-row ${playing ? 'playing' : ''}" data-id="${esc(s.id)}">
+                ${showNum ? `<span class="sr-num">${i + 1}</span>` : ''}
+                <div class="sr-cover">
+                    <img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=sr-cover-ph><i class=\\'fas fa-music\\'></i></div>'">
+                </div>
+                <div class="sr-info">
+                    <div class="sr-title">${esc(fmt(s.title))}</div>
+                    <div class="sr-artist">${esc(s.artist || 'Artiste inconnu')}</div>
+                </div>
+                ${isK ? '<span class="sr-badge">Karaoke</span>' : ''}
+                ${s.duration ? `<span class="sr-dur">${fmtDur(s.duration)}</span>` : ''}
+                <button class="sr-queue" data-queue="${esc(s.id)}" title="Ajouter a la file"><i class="fas fa-plus"></i></button>
+                <button class="sr-fav ${isFav ? 'active' : ''}" data-fav="${esc(s.id)}" title="Favori"><i class="fas fa-star"></i></button>
+            </div>`;
+        }
+        return html || '<div class="empty-state"><i class="fas fa-music"></i><p>Aucune chanson</p></div>';
+    }
+
+    function bindSongRows(container) {
+        container.querySelectorAll('.song-row[data-id]').forEach(row => {
+            row.addEventListener('click', (e) => {
+                if (e.target.closest('.sr-fav') || e.target.closest('.sr-queue')) return;
+                playSong(row.dataset.id);
+            });
+        });
+        container.querySelectorAll('.sr-fav[data-fav]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                const isFav = toggleFavorite(btn.dataset.fav);
+                btn.classList.toggle('active', isFav);
+            });
+        });
+        container.querySelectorAll('.sr-queue[data-queue]').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                addToQueue(btn.dataset.queue);
+                btn.innerHTML = '<i class="fas fa-check"></i>';
+                setTimeout(() => { btn.innerHTML = '<i class="fas fa-plus"></i>'; }, 1000);
+            });
+        });
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // PLAYBACK
+    // ════════════════════════════════════════════════════════════════════════════
+    async function playSong(songId) {
+        const song = songs.find(s => s.id === songId);
+        if (!song) return;
+        currentSong = song;
+
+        try {
+            await audioEngine.load(songId, song);
+        } catch (e) {
+            console.error('audio load failed', e);
+            return;
+        }
+
+        // Log play for admin stats
+        window.karaoking.postApi('/api/play-log', { song_id: songId }).catch(() => {});
+
+        // Display setup
+        updatePlayerBar();
+        loadLyrics(song.id);
+        updateAdaptiveBg(song.id);
+        document.querySelectorAll('.song-row').forEach(r => r.classList.toggle('playing', r.dataset.id === songId));
+        document.getElementById('pbTimeTotal').textContent = fmtTime(audioEngine.getDuration());
+
+        // Start playback
+        audioEngine.play();
+        isPlaying = true;
+        updatePlayIcon();
+    }
+
+    async function updatePlayerBar() {
+        if (!currentSong) return;
+        document.getElementById('pbTitle').textContent = fmt(currentSong.title);
+        document.getElementById('pbArtist').textContent = currentSong.artist || 'Artiste inconnu';
+        document.getElementById('playerFullTitle').textContent = fmt(currentSong.title);
+        document.getElementById('playerFullArtist').textContent = currentSong.artist || 'Artiste inconnu';
+
+        // Cover — only fetch if the song has one (avoids 404)
+        if (currentSong.has_cover) {
+            const cover = await window.karaoking.getCoverUrl(currentSong.id);
+            document.getElementById('pbCover').innerHTML = `<img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=pb-cover-ph><i class=\\'fas fa-music\\'></i></div>'">`;
+            document.getElementById('playerFullCover').innerHTML = `<img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=cover-ph-lg><i class=\\'fas fa-music\\'></i></div>'">`;
+        } else {
+            document.getElementById('pbCover').innerHTML = `<div class="pb-cover-ph"><i class="fas fa-music"></i></div>`;
+            document.getElementById('playerFullCover').innerHTML = `<div class="cover-ph-lg"><i class="fas fa-music"></i></div>`;
+        }
+
+        // Track sliders visibility
+        const hasMulti = currentSong.has_vocals && currentSong.has_instrumental;
+        document.getElementById('sliderVocals').parentElement.style.opacity = hasMulti ? '1' : '0.3';
+        document.getElementById('sliderInstrumental').parentElement.style.opacity = hasMulti ? '1' : '0.3';
+    }
+
+    function updatePlayIcon() {
+        document.getElementById('playIcon').className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+    }
+
+    // Controls
+    document.getElementById('btnPlay').addEventListener('click', async () => {
+        if (!currentSong) return;
+        if (audioEngine.isPlaying) {
+            audioEngine.pause();
+            isPlaying = false;
+        } else {
+            audioEngine.play();
+            isPlaying = true;
+        }
+        updatePlayIcon();
+    });
+
+    document.getElementById('btnPrev').addEventListener('click', () => {
+        if (!currentSong) return;
+        if (audioEngine.getCurrentTime() > 3) {
+            audioEngine.seek(0);
+            return;
+        }
+        const idx = songs.findIndex(s => s.id === currentSong.id);
+        if (idx > 0) playSong(songs[idx - 1].id);
+    });
+
+    document.getElementById('btnNext').addEventListener('click', () => nextSong());
+
+    function nextSong() {
+        // Queue takes priority
+        if (queue.length) { playNextFromQueue(); return; }
+        if (!currentSong) return;
+        const idx = songs.findIndex(s => s.id === currentSong.id);
+        if (idx < songs.length - 1) playSong(songs[idx + 1].id);
+    }
+
+    audioEngine.on('ended', nextSong);
+
+    document.getElementById('btnBack10').addEventListener('click', () => {
+        const t = audioEngine.getCurrentTime() - 10;
+        audioEngine.seek(Math.max(0, t));
+    });
+    document.getElementById('btnFwd10').addEventListener('click', () => {
+        const t = audioEngine.getCurrentTime() + 10;
+        audioEngine.seek(Math.min(audioEngine.getDuration(), t));
+    });
+
+    // Track sliders → engine gains
+    document.getElementById('sliderVocals').addEventListener('input', (e) => {
+        audioEngine.setVocalsGain(e.target.value / 100);
+    });
+    document.getElementById('sliderInstrumental').addEventListener('input', (e) => {
+        audioEngine.setInstrumentalGain(e.target.value / 100);
+    });
+
+    // Progress bar references
+    const pbBar = document.getElementById('pbBar');
+    const pbBarFill = document.getElementById('pbBarFill');
+
+    // Seek on progress bar click
+    pbBar.addEventListener('mousedown', (e) => {
+        if (!audioEngine.bufV) return;
+        audioEngine.isSeeking = true;
+        const seek = (ev) => {
+            const rect = pbBar.getBoundingClientRect();
+            let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+            pbBarFill.style.width = (pct * 100) + '%';
+            document.getElementById('pbTimeCur').textContent = fmtTime(pct * audioEngine.getDuration());
+        };
+        const end = (ev) => {
+            const rect = pbBar.getBoundingClientRect();
+            let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+            const t = pct * audioEngine.getDuration();
+            audioEngine.seek(t);
+            audioEngine.isSeeking = false;
+            document.removeEventListener('mousemove', seek);
+            document.removeEventListener('mouseup', end);
+        };
+        seek(e);
+        document.addEventListener('mousemove', seek);
+        document.addEventListener('mouseup', end);
+    });
+
+    // Lyrics button → ouvre le player plein écran
+    document.getElementById('btnLyrics').addEventListener('click', openFullPlayer);
+
+    // ─── Fullplayer bar controls (Karafun-style) ─────────────────────────
+    document.getElementById('fpBtnPlay').addEventListener('click', () => {
+        if (!currentSong) return;
+        if (audioEngine.isPlaying) { audioEngine.pause(); isPlaying = false; }
+        else { audioEngine.play(); isPlaying = true; }
+        updatePlayIcon();
+    });
+    document.getElementById('fpBtnPrev').addEventListener('click', () => {
+        if (!currentSong) return;
+        if (audioEngine.getCurrentTime() > 3) { audioEngine.seek(0); return; }
+        const idx = songs.findIndex(s => s.id === currentSong.id);
+        if (idx > 0) playSong(songs[idx - 1].id);
+    });
+    document.getElementById('fpBtnNext').addEventListener('click', () => nextSong());
+
+    // Fullplayer progress bar seek
+    document.getElementById('fpBar').addEventListener('mousedown', (e) => {
+        if (!audioEngine.bufV) return;
+        const bar = document.getElementById('fpBar');
+        const seek = (ev) => {
+            const rect = bar.getBoundingClientRect();
+            let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+            document.getElementById('fpBarFill').style.width = (pct * 100) + '%';
+        };
+        const end = (ev) => {
+            const rect = bar.getBoundingClientRect();
+            let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
+            audioEngine.seek(pct * audioEngine.getDuration());
+            document.removeEventListener('mousemove', seek);
+            document.removeEventListener('mouseup', end);
+        };
+        seek(e);
+        document.addEventListener('mousemove', seek);
+        document.addEventListener('mouseup', end);
+    });
+
+    // Fullplayer sliders → engine gains
+    document.getElementById('fpSliderVocals').addEventListener('input', (e) => {
+        audioEngine.setVocalsGain(e.target.value / 100);
+    });
+    document.getElementById('fpSliderInstrumental').addEventListener('input', (e) => {
+        audioEngine.setInstrumentalGain(e.target.value / 100);
+    });
+
+    // Sync fullplayer progress with audio tick
+    audioEngine.startTick((cur, dur, playing) => {
+        // Miniplayer
+        pbBarFill.style.width = (cur / dur * 100) + '%';
+        document.getElementById('pbTimeCur').textContent = fmtTime(cur);
+        document.getElementById('pbTimeTotal').textContent = fmtTime(dur);
+        // Fullplayer
+        document.getElementById('fpBarFill').style.width = (cur / dur * 100) + '%';
+        document.getElementById('fpTimeCur').textContent = fmtTime(cur);
+        document.getElementById('fpTimeRemain').textContent = '-' + fmtTime(dur - cur);
+        document.getElementById('fpPlayIcon').className = playing ? 'fas fa-pause' : 'fas fa-play';
+        // Lyrics + play icon
+        updateLyricsHighlight(cur);
+        isPlaying = playing;
+        updatePlayIcon();
+    });
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ADAPTIVE BACKGROUND (§6 — ColorThief)
+    // ════════════════════════════════════════════════════════════════════════════
+    const colorCache = {}; // {songId: [[r,g,b],[r,g,b]]}
+
+    // Simple dominant color extraction via canvas (no external lib)
+    function extractColors(img) {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        const size = 50; // downsample for speed
+        canvas.width = size; canvas.height = size;
+        ctx.drawImage(img, 0, 0, size, size);
+        const data = ctx.getImageData(0, 0, size, size).data;
+        // Split image: top-left quadrant = color1, bottom-right = color2
+        let r1=0,g1=0,b1=0,n1=0, r2=0,g2=0,b2=0,n2=0;
+        for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+                const i = (y * size + x) * 4;
+                const r=data[i], g=data[i+1], b=data[i+2];
+                if (r+g+b < 30 || r+g+b > 720) continue; // skip near-black/white
+                if (x + y < size) { r1+=r; g1+=g; b1+=b; n1++; }
+                else { r2+=r; g2+=g; b2+=b; n2++; }
+            }
+        }
+        if (!n1) n1 = 1; if (!n2) n2 = 1;
+        return [[r1/n1|0, g1/n1|0, b1/n1|0], [r2/n2|0, g2/n2|0, b2/n2|0]];
+    }
+
+    async function updateAdaptiveBg(songId) {
+        if (!songId) return;
+        if (colorCache[songId]) { applyAdaptiveColors(colorCache[songId]); return; }
+
+        try {
+            const coverUrl = await window.karaoking.getCoverUrl(songId);
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = () => {
+                try {
+                    const palette = extractColors(img);
+                    colorCache[songId] = palette;
+                    applyAdaptiveColors(palette);
+                } catch {}
+            };
+            img.src = coverUrl;
+        } catch {}
+    }
+
+    function applyAdaptiveColors(palette) {
+        const bgEl = document.getElementById('adaptiveBg');
+        const [c1, c2] = palette;
+        bgEl.style.background = `radial-gradient(ellipse at 30% 20%, rgba(${c1[0]},${c1[1]},${c1[2]},0.4) 0%, rgba(${c2[0]},${c2[1]},${c2[2]},0.2) 50%, var(--bg) 100%)`;
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // QUEUE (§6 — SortableJS)
+    // ════════════════════════════════════════════════════════════════════════════
+    let queue = [];
+
+    // Personnaliser popover toggle (animated enter/exit)
+    const _popover = document.getElementById('customizePopover');
+    _popover.hidden = false; // keep in DOM for animation, control via .visible
+    document.getElementById('customizeBtn').addEventListener('click', () => {
+        _popover.classList.toggle('visible');
+    });
+    document.addEventListener('click', (e) => {
+        if (_popover.classList.contains('visible') && !e.target.closest('.kara-popover') && !e.target.closest('#customizeBtn')) {
+            _popover.classList.remove('visible');
+        }
+    });
+
+    function addToQueue(songId) {
+        const song = songs.find(s => s.id === songId);
+        if (!song) return;
+        queue.push({ id: song.id, title: song.title, artist: song.artist });
+        renderQueue();
+    }
+
+    function renderQueue() {
+        const list = document.getElementById('queueList');
+        const empty = document.getElementById('queueEmpty');
+        const countEl = document.getElementById('queueCount');
+        if (countEl) countEl.textContent = queue.length + ' chanson' + (queue.length > 1 ? 's' : '');
+        if (!queue.length) { list.innerHTML = ''; empty.style.display = ''; return; }
+        empty.style.display = 'none';
+        list.innerHTML = queue.map((q, i) => `
+            <div class="queue-item" data-idx="${i}">
+                <span class="queue-handle"><i class="fas fa-grip-vertical"></i></span>
+                <div class="queue-item-info">
+                    <div class="queue-item-title">${esc(fmt(q.title))}</div>
+                    <div class="queue-item-artist">${esc(q.artist || '')}</div>
+                </div>
+                <button class="queue-item-remove" data-idx="${i}"><i class="fas fa-times"></i></button>
+            </div>
+        `).join('');
+
+        // Sortable drag-drop
+        if (typeof Sortable !== 'undefined') {
+            Sortable.create(list, {
+                handle: '.queue-handle',
+                animation: 150,
+                onEnd: (evt) => {
+                    const [moved] = queue.splice(evt.oldIndex, 1);
+                    queue.splice(evt.newIndex, 0, moved);
+                }
+            });
+        }
+
+        list.querySelectorAll('.queue-item-remove').forEach(btn => {
+            btn.addEventListener('click', () => {
+                queue.splice(parseInt(btn.dataset.idx), 1);
+                renderQueue();
+            });
+        });
+    }
+
+    function playNextFromQueue() {
+        if (queue.length) {
+            const next = queue.shift();
+            renderQueue();
+            showAnnouncer(next, () => playSong(next.id));
+        }
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // ANNOUNCER (§6 — overlay avant lecture)
+    // ════════════════════════════════════════════════════════════════════════════
+    function showAnnouncer(songData, onDone) {
+        const overlay = document.getElementById('announcerOverlay');
+        document.getElementById('announcerTitle').textContent = fmt(songData.title);
+        document.getElementById('announcerArtist').textContent = songData.artist || '';
+        overlay.hidden = false;
+        setTimeout(() => {
+            overlay.hidden = true;
+            if (onDone) onDone();
+        }, 2500);
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // PITCH / TEMPO (Personnaliser popover)
+    // ════════════════════════════════════════════════════════════════════════════
+    let pitchSemitones = 0;
+    let tempoPercent = 100;
+
+    document.querySelectorAll('[data-pitch]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            pitchSemitones = Math.max(-6, Math.min(6, pitchSemitones + parseInt(btn.dataset.pitch)));
+            document.getElementById('pitchValue').textContent = pitchSemitones;
+            applyPitchTempo();
+        });
+    });
+
+    document.querySelectorAll('[data-tempo]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            tempoPercent = Math.max(70, Math.min(130, tempoPercent + parseInt(btn.dataset.tempo)));
+            document.getElementById('tempoValue').textContent = tempoPercent + '%';
+            applyPitchTempo();
+        });
+    });
+
+    function applyPitchTempo() {
+        const rate = tempoPercent / 100;
+        const cents = pitchSemitones * 100; // 100 cents = 1 semitone
+        if (audioEngine.srcV) {
+            audioEngine.srcV.playbackRate.value = rate;
+            audioEngine.srcV.detune.value = cents;
+        }
+        if (audioEngine.srcI) {
+            audioEngine.srcI.playbackRate.value = rate;
+            audioEngine.srcI.detune.value = cents;
+        }
+    }
+
+    // Re-apply pitch/tempo after each play/seek (new source nodes are created)
+    const _origStartAt = audioEngine.startAt.bind(audioEngine);
+    audioEngine.startAt = async function(offset) {
+        await _origStartAt(offset);
+        applyPitchTempo();
+    };
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // BACKGROUND MODES (§6 M7 — bubbles, visualizer)
+    // ════════════════════════════════════════════════════════════════════════════
+    let bgMode = 'dynamic'; // dynamic | bubbles | visualizer
+    let analyserNode = null;
+    let bgAnimFrame = null;
+
+    function initAnalyser() {
+        if (analyserNode || !audioEngine.audioCtx || !audioEngine.gainMaster) return;
+        analyserNode = audioEngine.audioCtx.createAnalyser();
+        analyserNode.fftSize = 256;
+        audioEngine.gainMaster.connect(analyserNode);
+    }
+
+    function setBgMode(mode) {
+        bgMode = mode;
+        const bgEl = document.getElementById('adaptiveBg');
+        // Cleanup
+        if (bgAnimFrame) { cancelAnimationFrame(bgAnimFrame); bgAnimFrame = null; }
+        bgEl.querySelectorAll('.bubble, canvas').forEach(el => el.remove());
+
+        if (mode === 'bubbles') {
+            // Spawn glass bubbles
+            for (let i = 0; i < 12; i++) {
+                const bubble = document.createElement('div');
+                bubble.className = 'bubble';
+                bubble.style.cssText = `
+                    left: ${Math.random() * 100}%;
+                    width: ${30 + Math.random() * 80}px;
+                    height: ${30 + Math.random() * 80}px;
+                    animation-delay: ${Math.random() * 4}s;
+                    animation-duration: ${6 + Math.random() * 8}s;
+                `;
+                bgEl.appendChild(bubble);
+            }
+        } else if (mode === 'visualizer') {
+            initAnalyser();
+            if (!analyserNode) return;
+            const canvas = document.createElement('canvas');
+            canvas.style.cssText = 'position:absolute;inset:0;width:100%;height:100%;';
+            bgEl.appendChild(canvas);
+            const ctx = canvas.getContext('2d');
+            const bufLen = analyserNode.frequencyBinCount;
+            const dataArray = new Uint8Array(bufLen);
+
+            const draw = () => {
+                bgAnimFrame = requestAnimationFrame(draw);
+                canvas.width = bgEl.clientWidth;
+                canvas.height = bgEl.clientHeight;
+                analyserNode.getByteFrequencyData(dataArray);
+                const barW = canvas.width / bufLen * 2.5;
+                let x = 0;
+                for (let i = 0; i < bufLen; i++) {
+                    const barH = (dataArray[i] / 255) * canvas.height * 0.6;
+                    ctx.fillStyle = `rgba(124, 77, 255, ${0.3 + dataArray[i] / 255 * 0.5})`;
+                    ctx.fillRect(x, canvas.height - barH, barW - 1, barH);
+                    x += barW;
+                }
+            };
+            draw();
+        }
+        // 'dynamic' = colorthief gradient (already applied)
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // LYRICS
+    // ════════════════════════════════════════════════════════════════════════════
+    async function loadLyrics(songId) {
+        try {
+            const data = await window.karaoking.fetchApi(`/api/lyrics/${songId}`);
+            if (data && data.segments) lyrics = data.segments;
+            else if (data && data.lrc) {
+                // Parse LRC
+                lyrics = [];
+                const lines = data.lrc.split('\n');
+                for (const line of lines) {
+                    const m = line.match(/\[(\d+):(\d+)\.(\d+)\](.*)/);
+                    if (m) lyrics.push({ time: parseInt(m[1])*60 + parseInt(m[2]) + parseInt(m[3])/100, text: m[4].trim() });
+                }
+            } else lyrics = [];
+        } catch { lyrics = []; }
+        currentLineIndex = -1;
+        renderLyrics();
+    }
+
+    function renderLyrics() {
+        const container = document.getElementById('lyricsContainer');
+        if (!lyrics.length) {
+            container.innerHTML = '<div class="lyrics-spacer"></div><p class="lyrics-placeholder">Pas de paroles disponibles</p><div class="lyrics-spacer"></div>';
+            return;
+        }
+
+        // Split long phrases into short visual lines (~45 chars max)
+        // Each sub-line gets interpolated start/end times
+        const MAX_LINE = 45;
+        const splitLyrics = [];
+
+        for (let i = 0; i < lyrics.length; i++) {
+            const text = (lyrics[i].text || '').trim();
+            const nextTime = (i < lyrics.length - 1) ? lyrics[i + 1].time : (lyrics[i].end_time || lyrics[i].time + 5);
+            const dur = nextTime - lyrics[i].time;
+
+            if (!text) { splitLyrics.push({ time: lyrics[i].time, _end: nextTime, text: '' }); continue; }
+
+            if (text.length <= MAX_LINE) {
+                splitLyrics.push({ time: lyrics[i].time, _end: nextTime, text });
+                continue;
+            }
+
+            // Split at comma, then at space near middle
+            const parts = [];
+            let remaining = text;
+            while (remaining.length > MAX_LINE) {
+                let splitAt = -1;
+                // Try comma/semicolon within range
+                for (let j = Math.min(MAX_LINE, remaining.length - 1); j > 15; j--) {
+                    if (remaining[j] === ',' || remaining[j] === ';') { splitAt = j + 1; break; }
+                }
+                // Try space near middle
+                if (splitAt < 0) {
+                    for (let j = MAX_LINE; j > 15; j--) {
+                        if (remaining[j] === ' ') { splitAt = j; break; }
+                    }
+                }
+                if (splitAt < 0) splitAt = MAX_LINE;
+                parts.push(remaining.slice(0, splitAt).trim());
+                remaining = remaining.slice(splitAt).trim();
+            }
+            if (remaining) parts.push(remaining);
+
+            // Distribute time proportionally across parts
+            const totalChars = parts.reduce((s, p) => s + p.length, 0);
+            let elapsed = 0;
+            for (const part of parts) {
+                const partStart = lyrics[i].time + (elapsed / totalChars) * dur;
+                elapsed += part.length;
+                const partEnd = lyrics[i].time + (elapsed / totalChars) * dur;
+                splitLyrics.push({ time: partStart, _end: partEnd, text: part });
+            }
+        }
+
+        // Replace lyrics array with split version
+        lyrics = splitLyrics;
+
+        let html = '<div class="lyrics-spacer"></div>';
+        for (let i = 0; i < lyrics.length; i++) {
+            const text = lyrics[i].text;
+            if (!text) { html += `<p class="lyrics-line" data-i="${i}"></p>`; continue; }
+            html += `<p class="lyrics-line" data-i="${i}">${esc(text)}</p>`;
+        }
+        html += '<div class="lyrics-spacer"></div>';
+        container.innerHTML = html;
+    }
+
+    function updateLyricsHighlight(rawTime) {
+        // Apply per-song offset (set by admin in edit modal)
+        const offset = (currentSong && currentSong.lyrics_offset) ? currentSong.lyrics_offset : 0;
+        const time = rawTime + offset;
+
+        // Find current line by timestamps
+        let newIdx = -1;
+        for (let i = 0; i < lyrics.length; i++) {
+            if (time >= lyrics[i].time) newIdx = i; else break;
+        }
+
+        const lines = document.querySelectorAll('.lyrics-line');
+
+        // Update classes only when line changes
+        if (newIdx !== currentLineIndex) {
+            currentLineIndex = newIdx;
+            lines.forEach((l, i) => {
+                l.classList.remove('active', 'past', 'upcoming');
+                if (i < currentLineIndex) l.classList.add('past');
+                else if (i === currentLineIndex) l.classList.add('active');
+                else if (i === currentLineIndex + 1) l.classList.add('upcoming');
+            });
+            // Scroll active line to center
+            const active = lines[currentLineIndex];
+            const container = document.getElementById('lyricsContainer');
+            if (active && container) {
+                container.scrollTo({
+                    top: active.offsetTop - container.clientHeight / 2 + active.offsetHeight / 2,
+                    behavior: 'smooth'
+                });
+            }
+        }
+
+        // No gradient — just show/hide lines based on timestamps.
+        // Active line = fully visible. Past/future = handled by CSS classes only.
+    }
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // EXPOSE GLOBALS (type="module" scope — needed for inline handlers/data-goto)
+    // ════════════════════════════════════════════════════════════════════════════
+    window.navigate = navigate;
+    window.playSong = playSong;
+    window.setDiscoverSection = setDiscoverSection;
+    window.setLibrarySection = setLibrarySection;
+    window.openFullPlayer = openFullPlayer;
+    window.addToQueue = addToQueue;
+    window.setBgMode = setBgMode;
+
+    // ════════════════════════════════════════════════════════════════════════════
+    // INIT — module scripts run after DOM parsing, no need for DOMContentLoaded
+    // ════════════════════════════════════════════════════════════════════════════
+    try { await audioEngine.init(); } catch(e) { console.warn('AudioEngine init deferred:', e); }
+    await loadGenres();
+    await loadSongs();
+    const initialTab = tabFromHash();
+    if (!window.location.hash) window.location.hash = `#/${initialTab}`;
+    showView(initialTab);
+    console.log('[karaoking] Initialized — ' + songs.length + ' songs loaded');
+    </script>
+</body>
+</html>

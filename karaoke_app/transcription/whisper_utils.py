@@ -1,116 +1,118 @@
+# transcription audio via faster-whisper (fallback openai-whisper)
 import warnings
 warnings.filterwarnings('ignore')
 
-import whisper
-import numpy as np
-import torch
+import logging
+log = logging.getLogger('karaoking')
 
+_USE_FASTER = False
+try:
+    from faster_whisper import WhisperModel
+    _USE_FASTER = True
+    log.info("[whisper] Using faster-whisper (CTranslate2)")
+except ImportError:
+    import whisper
+    log.info("[whisper] Using openai-whisper (fallback)")
 
-# Load Whisper model (cached after first load)
 _model = None
+_model_name = None
 
 
-def get_model(model_name='base'):
-    """Get or load Whisper model"""
-    global _model
-    if _model is None:
-        print(f"Loading Whisper model: {model_name}")
-        _model = whisper.load_model(model_name)
+def get_model(name='base'):
+    global _model, _model_name
+    if _model is not None and _model_name == name:
+        return _model
+
+    print(f"[whisper] Loading model: {name} ({'faster-whisper' if _USE_FASTER else 'openai-whisper'})")
+
+    if _USE_FASTER:
+        _model = WhisperModel(name, device="cpu", compute_type="int8")
+    else:
+        import whisper
+        _model = whisper.load_model(name)
+
+    _model_name = name
     return _model
 
 
 def transcribe_audio(audio_path, model_name='base', language=None):
-    """
-    Transcribe audio to text with timestamps using Whisper
-    
-    Args:
-        audio_path: Path to audio file (wav, mp3, etc.)
-        model_name: Whisper model size ('tiny', 'base', 'small', 'medium', 'large')
-        language: Language code (None for auto-detect)
-    
-    Returns:
-        Dictionary with 'text' and 'segments'
-    """
-    model = get_model(model_name)
-    
-    print(f"Transcribing: {audio_path}")
-    
-    # Run transcription
-    if language:
-        result = model.transcribe(
-            audio_path, 
-            language=language,
-            word_timestamps=True,
-            verbose=False
-        )
+    mdl = get_model(model_name)
+    print(f"[whisper] Transcribing: {audio_path}")
+
+    if _USE_FASTER:
+        return _transcribe_faster(mdl, audio_path, language)
     else:
-        result = model.transcribe(
-            audio_path,
-            word_timestamps=True,
-            verbose=False
-        )
-    
-    # Extract text and segments with timestamps
-    transcription = {
-        'text': result['text'].strip(),
-        'segments': []
+        return _transcribe_openai(mdl, audio_path, language)
+
+
+def _transcribe_faster(mdl, audio_path, lang):
+    kw = {
+        'beam_size': 5,
+        'word_timestamps': True,
+        'vad_filter': True,
+        'vad_parameters': dict(min_silence_duration_ms=500),
     }
-    
-    # Process segments
-    for segment in result['segments']:
-        transcription['segments'].append({
-            'start': segment['start'],
-            'end': segment['end'],
-            'text': segment['text'].strip(),
-            'words': segment.get('words', [])
+    if lang:
+        kw['language'] = lang
+
+    segs_iter, info = mdl.transcribe(audio_path, **kw)
+    segs = list(segs_iter)
+    print(f"[whisper] Detected language: {info.language} (prob {info.language_probability:.2f})")
+
+    out = {'text': ' '.join(s.text.strip() for s in segs), 'segments': []}
+
+    for s in segs:
+        out['segments'].append({
+            'start': s.start, 'end': s.end,
+            'text': s.text.strip(),
+            'words': [{'word': w.word, 'start': w.start, 'end': w.end, 'probability': w.probability}
+                      for w in (s.words or [])]
         })
-    
-    print(f"Transcription complete: {len(transcription['text'])} characters")
-    
-    return transcription
+
+    print(f"[whisper] Transcription complete: {len(out['text'])} chars, {len(out['segments'])} segments")
+    return out
+
+
+def _transcribe_openai(mdl, audio_path, lang):
+    kw = {'word_timestamps': True, 'verbose': False}
+    if lang:
+        kw['language'] = lang
+
+    result = mdl.transcribe(audio_path, **kw)
+
+    out = {'text': result['text'].strip(), 'segments': []}
+    for seg in result['segments']:
+        out['segments'].append({
+            'start': seg['start'], 'end': seg['end'],
+            'text': seg['text'].strip(),
+            'words': seg.get('words', [])
+        })
+
+    print(f"[whisper] Transcription complete: {len(out['text'])} characters")
+    return out
 
 
 def transcribe_vocals_to_lrc(audio_path, model_name='base'):
-    """
-    Transcribe vocals and return LRC format directly
-    
-    Returns:
-        LRC formatted string
-    """
     result = transcribe_audio(audio_path, model_name)
     return create_lrc(result['segments'])
 
 
 def create_lrc(segments):
-    """
-    Create LRC (Lyric) format from Whisper segments
-    
-    LRC format: [mm:ss.xx] lyrics text
-    """
-    lrc_lines = []
-    
-    for segment in segments:
-        start_time = segment['start']
-        text = segment['text']
-        
-        # Convert to LRC time format [mm:ss.xx]
-        minutes = int(start_time // 60)
-        seconds = int(start_time % 60)
-        hundredths = int((start_time % 1) * 100)
-        
-        time_str = f"[{minutes:02d}:{seconds:02d}.{hundredths:02d}]"
-        lrc_lines.append(f"{time_str}{text}")
-    
-    return '\n'.join(lrc_lines)
+    lines = []
+    for seg in segments:
+        t = seg['start']
+        mins = int(t // 60)
+        secs = int(t % 60)
+        hs = int((t % 1) * 100)
+        lines.append(f"[{mins:02d}:{secs:02d}.{hs:02d}]{seg['text']}")
+    return '\n'.join(lines)
 
 
 def get_available_models():
-    """Get list of available Whisper models"""
     return {
         'tiny': '39M - fastest, lowest accuracy',
         'base': '74M - fast, good accuracy',
         'small': '244M - moderate speed, better accuracy',
         'medium': '769M - slow, high accuracy',
-        'large': '1550M - slowest, highest accuracy'
+        'large': '1550M - slowest, highest accuracy',
     }
-

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Analytics - KaraoKing Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-music"></i>
+                <span>KaraoKing Admin</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin" class="nav-item">
+                    <i class="fas fa-th-large"></i> Tableau de bord
+                </a>
+                <a href="/admin/upload" class="nav-item">
+                    <i class="fas fa-cloud-upload-alt"></i> Importer
+                </a>
+                <a href="/admin/catalogue" class="nav-item">
+                    <i class="fas fa-folder-tree"></i> Catalogue
+                </a>
+                <a href="/admin/analytics" class="nav-item active">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </a>
+                <a href="/admin/alerts" class="nav-item">
+                    <i class="fas fa-bell"></i> Alertes
+                </a>
+                <a href="/admin/logout" class="nav-item nav-logout">
+                    <i class="fas fa-sign-out-alt"></i> Deconnexion
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="admin-header">
+                <h1><i class="fas fa-chart-line"></i> Analytics</h1>
+                <!-- TODO: filtre par periode (7j / 30j / tout) -->
+            </header>
+
+            <div class="dashboard-stats" id="overviewStats"></div>
+
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <h3><i class="fas fa-search"></i> Top recherches (7 derniers jours)</h3>
+                    <div id="topSearches"></div>
+                </div>
+                <div class="analytics-card">
+                    <h3><i class="fas fa-fire"></i> Plus écoutées</h3>
+                    <div id="topPlayed"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        var esc = function(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); };
+
+        function loadAnalytics() {
+            fetch('/api/admin/analytics/overview').then(function(r) { return r.json(); }).then(function(data) {
+                document.getElementById('overviewStats').innerHTML = `
+                    <div class="stat-card">
+                        <div class="stat-icon"><i class="fas fa-music"></i></div>
+                        <div><div class="stat-value">${data.total_songs}</div><div class="stat-label">Chansons</div></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:#e8f5e9;color:#2e7d32;"><i class="fas fa-microphone-alt"></i></div>
+                        <div><div class="stat-value">${data.karaoke_ready}</div><div class="stat-label">Prêt karaoké</div></div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon" style="background:#e3f2fd;color:#1565c0;"><i class="fas fa-search"></i></div>
+                        <div><div class="stat-value">${data.searches_today}</div><div class="stat-label">Recherches aujourd'hui</div></div>
+                    </div>
+                    <div class="stat-card stat-urgent">
+                        <div class="stat-icon" style="background:#fce4ec;color:#c62828;"><i class="fas fa-bell"></i></div>
+                        <div><div class="stat-value">${data.alerts_untreated}</div><div class="stat-label">Alertes non traitées</div></div>
+                    </div>
+                `;
+
+                // top searches
+                var topS = document.getElementById('topSearches');
+                if (!data.top_searches.length) {
+                    topS.innerHTML = '<p class="empty-state">Pas encore de recherches</p>';
+                } else {
+                    topS.innerHTML = '<ol class="rank-list">' + data.top_searches.map(function(s) {
+                        return '<li><span class="rank-term">' + esc(s.term) + '</span><span class="rank-count">' + s.count + '</span></li>';
+                    }).join('') + '</ol>';
+                }
+
+                // top played
+                var topP = document.getElementById('topPlayed');
+                var played = data.top_played.filter(function(s) { return s.plays > 0; });
+                if (!played.length) topP.innerHTML = '<p class="empty-state">Pas encore d\'écoutes</p>';
+                else topP.innerHTML = '<ol class="rank-list">' + played.map(function(s) {
+                    return '<li><span class="rank-term">' + esc(s.title) + '</span><span class="rank-count">' + s.plays + '</span></li>';
+                }).join('') + '</ol>';
+
+            }).catch(function(err) {
+                // console.log('analytics fail', err);
+            });
+        }
+
+        document.addEventListener('DOMContentLoaded', loadAnalytics);
+    </script>
+</body>
+</html>

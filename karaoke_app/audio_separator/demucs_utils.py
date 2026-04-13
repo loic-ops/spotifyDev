@@ -10,14 +10,27 @@ from demucs.pretrained import get_model
 from demucs.apply import apply_model
 
 
-def _load_audio_as_tensor(input_path, target_sr=44100, target_channels=2):
-    """
-    Load any audio file as a torch float32 tensor using ffmpeg + scipy.
-    This avoids torchaudio backend issues entirely.
+# Cache the loaded model in memory so we don't re-load ~80MB from disk
+# (and re-init torch graphs) on every separation request.
+_model_cache = {}
 
-    Returns:
-        (tensor [channels, samples], sample_rate)
-    """
+
+def _get_cached_model(model_name, device):
+    key = (model_name, device)
+    model = _model_cache.get(key)
+    if model is None:
+        print(f"[demucs] Loading model: {model_name} (cold)...")
+        model = get_model(model_name)
+        model.to(device)
+        model.eval()
+        _model_cache[key] = model
+    else:
+        print(f"[demucs] Reusing cached model: {model_name}")
+    return model
+
+
+def _load_audio_as_tensor(input_path, target_sr=44100, target_channels=2):
+    
     from scipy.io import wavfile
 
     # Convert to WAV with exact specs via ffmpeg
@@ -78,11 +91,8 @@ def separate_audio_demucs(input_path, output_dir, model_name='htdemucs'):
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     print(f"[demucs] Using device: {device}")
 
-    # Load pretrained model
-    print(f"[demucs] Loading model: {model_name}...")
-    model = get_model(model_name)
-    model.to(device)
-    model.eval()
+    # Load pretrained model (cached in memory across calls)
+    model = _get_cached_model(model_name, device)
 
     # Load audio via ffmpeg+scipy (bypasses torchaudio backend issues)
     wav, sr = _load_audio_as_tensor(

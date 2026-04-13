@@ -1,72 +1,123 @@
-version: '3.8'
-
 services:
-  # Flask Application
+  # Flask Application (Gunicorn)
   app:
     build: .
     container_name: karaoke_app
     ports:
       - "5001:5000"
     volumes:
-      # Only mount data directories, NOT the entire static folder
-      # This preserves CSS/JS files built into the image
       - uploads_data:/app/static/uploads
       - processed_data:/app/static/processed
-      - whisper_cache:/root/.cache/whisper
+      - app_data:/app/data
+      - whisper_cache:/home/karaoke/.cache/whisper
+      - torch_cache:/home/karaoke/.cache/torch
       - ./.env:/app/.env:ro
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
-      - MYSQL_USER=karaoke
-      - MYSQL_PASSWORD=karaoke_password
-      - MYSQL_DATABASE=karaoke_db
+      - MYSQL_USER=${MYSQL_USER:-karaoke}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-karaoke_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-karaoke_db}
+      - REDIS_URL=redis://redis:6379/0
+      - FLASK_DEBUG=true
     depends_on:
       mysql:
         condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+
+  # RQ Worker — Demucs/Whisper/yt-dlp (heavy tasks isolated from web)
+  rq-worker:
+    build: .
+    container_name: karaoke_worker
+    command: python -m jobs.worker
+    volumes:
+      - uploads_data:/app/static/uploads
+      - processed_data:/app/static/processed
+      - app_data:/app/data
+      - whisper_cache:/home/karaoke/.cache/whisper
+      - torch_cache:/home/karaoke/.cache/torch
+      - ./.env:/app/.env:ro
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=${MYSQL_USER:-karaoke}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-karaoke_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-karaoke_db}
+      - REDIS_URL=redis://redis:6379/0
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+
+  # Redis (queue broker for RQ)
+  redis:
+    image: redis:7-alpine
+    container_name: karaoke_redis
+    ports:
+      - "127.0.0.1:6380:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
 
   # MySQL Database
   mysql:
     image: mysql:8.0
     container_name: karaoke_mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=root_password
-      - MYSQL_DATABASE=karaoke_db
-      - MYSQL_USER=karaoke
-      - MYSQL_PASSWORD=karaoke_password
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-karaoke_db}
+      - MYSQL_USER=${MYSQL_USER:-karaoke}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-karaoke_password}
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot_password"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
       timeout: 5s
       retries: 5
     restart: unless-stopped
-
-  # phpMyAdmin
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
-    container_name: karaoke_phpmyadmin
-    environment:
-      - PMA_HOST=mysql
-      - PMA_PORT=3306
-      - PMA_DATABASE=karaoke_db
-      - PMA_USER=karaoke
-      - PMA_PASSWORD=karaoke_password
-    ports:
-      - "8080:80"
-    depends_on:
-      mysql:
-        condition: service_healthy
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
 volumes:
   mysql_data:
   uploads_data:
   processed_data:
+  app_data:
   whisper_cache:
+  torch_cache:
+  redis_data:
 
 networks:
   default:

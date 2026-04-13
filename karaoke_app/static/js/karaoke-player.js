@@ -5,9 +5,23 @@
 
 class KaraokePlayer {
     constructor() {
-        // Audio elements (deux pistes séparées : voix + instrumental)
-        this.audioVocals = document.getElementById('audioVocals');
-        this.audioInstrumental = document.getElementById('audioInstrumental');
+        // Web Audio engine — single AudioContext, two AudioBufferSourceNodes
+        // started at the same audioCtx time. No drift, no race between two
+        // independent <audio> decoders.
+        this.audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        this.gainV = this.audioCtx.createGain();
+        this.gainI = this.audioCtx.createGain();
+        this.gainMaster = this.audioCtx.createGain();
+        this.gainV.connect(this.gainMaster);
+        this.gainI.connect(this.gainMaster);
+        this.gainMaster.connect(this.audioCtx.destination);
+
+        this.bufV = null;        // AudioBuffer (vocals or original)
+        this.bufI = null;        // AudioBuffer (instrumental)
+        this.srcV = null;        // current BufferSourceNode
+        this.srcI = null;
+        this.startCtxTime = 0;   // audioCtx.currentTime at start
+        this.startOffset = 0;    // offset into the buffer at start
 
         // State
         this.songs = [];
@@ -16,6 +30,8 @@ class KaraokePlayer {
         this.currentLineIndex = -1;
         this.isPlaying = false;
         this.isSeeking = false;
+        this.hasInstrumental = false;
+        this._playToken = 0;
 
         // DOM
         this.songListView = document.getElementById('songListView');
@@ -50,25 +66,97 @@ class KaraokePlayer {
 
     init() {
         this.loadSongs().then(() => {
-            // Auto-play if ?play=songId in URL (from library page)
             const params = new URLSearchParams(window.location.search);
             const playId = params.get('play');
             if (playId && this.songs.find(s => s.id === playId)) {
                 this.selectSong(playId);
-                setTimeout(() => this.play(), 500);
-                // Clean URL
                 window.history.replaceState({}, '', '/');
             }
         });
         this.bindEvents();
-        this.audioVocals.volume = 1;
-        this.audioInstrumental.volume = 1;
+        this._tick();
     }
 
     /** Escape HTML to prevent XSS */
     _esc(str) {
         if (!str) return '';
         return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+    }
+
+    // ─── Web Audio engine ───────────────────────────────────────────────────
+
+    async _fetchAudioBuffer(url) {
+        const resp = await fetch(url);
+        if (!resp.ok) throw new Error('fetch ' + resp.status);
+        const arr = await resp.arrayBuffer();
+        return await this.audioCtx.decodeAudioData(arr);
+    }
+
+    _stopSources() {
+        for (const s of [this.srcV, this.srcI]) {
+            if (!s) continue;
+            try { s.onended = null; s.stop(); } catch {}
+            try { s.disconnect(); } catch {}
+        }
+        this.srcV = null;
+        this.srcI = null;
+    }
+
+    _startAt(offset) {
+        this._stopSources();
+        if (!this.bufV) return;
+        const when = this.audioCtx.currentTime + 0.05;
+
+        this.srcV = this.audioCtx.createBufferSource();
+        this.srcV.buffer = this.bufV;
+        this.srcV.connect(this.gainV);
+
+        if (this.hasInstrumental && this.bufI) {
+            this.srcI = this.audioCtx.createBufferSource();
+            this.srcI.buffer = this.bufI;
+            this.srcI.connect(this.gainI);
+        }
+
+        this.srcV.start(when, offset);
+        if (this.srcI) this.srcI.start(when, offset);
+
+        this.startCtxTime = when;
+        this.startOffset = offset;
+        this.isPlaying = true;
+        this.updatePlayIcon();
+
+        this.srcV.onended = () => {
+            if (!this.isPlaying) return;
+            if (this._currentTime() >= this._duration() - 0.1) {
+                this.isPlaying = false;
+                this.updatePlayIcon();
+                this.nextSong(true);
+            }
+        };
+    }
+
+    _duration() { return this.bufV ? this.bufV.duration : 0; }
+
+    _currentTime() {
+        if (!this.bufV) return 0;
+        if (this.isPlaying) {
+            return Math.min(this._duration(), this.startOffset + (this.audioCtx.currentTime - this.startCtxTime));
+        }
+        return this.startOffset;
+    }
+
+    _tick() {
+        if (!this.isSeeking) {
+            const t = this._currentTime();
+            const d = this._duration() || 1;
+            const pct = (t / d) * 100;
+            this.progressPlayed.style.width = pct + '%';
+            this.progressThumb.style.left = pct + '%';
+            this.currentTimeEl.textContent = this.formatTime(t);
+            this.totalTimeEl.textContent = this.formatTime(this._duration());
+            this.updateLyricsHighlight(t);
+        }
+        requestAnimationFrame(() => this._tick());
     }
 
     bindEvents() {
@@ -85,18 +173,13 @@ class KaraokePlayer {
         // Volume
         this.volumeSlider.addEventListener('input', (e) => this.setVolume(e.target.value));
 
-        // Track sliders (voix + instrumental)
-        this.vocalsSlider.addEventListener('input', (e) => { this.audioVocals.volume = e.target.value / 100; });
-        this.instrumentalSlider.addEventListener('input', (e) => { this.audioInstrumental.volume = e.target.value / 100; });
+        // Track sliders → per-track gain nodes
+        this.vocalsSlider.addEventListener('input', (e) => { this.gainV.gain.value = e.target.value / 100; });
+        this.instrumentalSlider.addEventListener('input', (e) => { this.gainI.gain.value = e.target.value / 100; });
 
         // Progress bar seeking
         this.progressBar.addEventListener('mousedown', (e) => this.startSeek(e));
         this.progressBar.addEventListener('touchstart', (e) => this.startSeek(e), { passive: false });
-
-        // Time update from vocals track (master clock)
-        this.audioVocals.addEventListener('timeupdate', () => this.onTimeUpdate());
-        this.audioVocals.addEventListener('loadedmetadata', () => this.onMetadataLoaded());
-        this.audioVocals.addEventListener('ended', () => this.onEnded());
     }
 
     // ─── SONG LIST ──────────────────────────────────────────────────────────
@@ -120,6 +203,9 @@ class KaraokePlayer {
         const karaokeSection = document.getElementById('karaokeSection');
         const heroSection = document.getElementById('heroSection');
 
+        // Always show search bar so users can search YouTube
+        if (searchWrap) searchWrap.style.display = '';
+
         if (!hasSongs) {
             this.songList.innerHTML = `
                 <div class="empty-library">
@@ -127,11 +213,11 @@ class KaraokePlayer {
                         <i class="fas fa-record-vinyl"></i>
                     </div>
                     <h3>Aucune chanson disponible</h3>
-                    <p>Importez vos premieres chansons depuis l'interface admin</p>
+                    <p>Recherchez une chanson pour la telecharger depuis YouTube</p>
                 </div>`;
-            if (searchWrap) searchWrap.style.display = 'none';
             if (statsBar) statsBar.style.display = 'none';
             if (karaokeSection) karaokeSection.style.display = 'none';
+            this._setupSearch();
             return;
         }
 
@@ -220,17 +306,21 @@ class KaraokePlayer {
         const clearBtn = document.getElementById('searchClear');
         if (!input) return;
 
+        this._ytSearchTimeout = null;
+
         input.addEventListener('input', () => {
             const q = input.value.toLowerCase().trim();
             if (clearBtn) clearBtn.style.display = q ? '' : 'none';
 
             // Filter all songs grid
+            let visibleCount = 0;
             this.songList.querySelectorAll('.song-grid-item').forEach(el => {
                 const id = el.dataset.id;
                 const song = this.songs.find(s => s.id === id);
                 if (!song) return;
                 const match = !q || song.title.toLowerCase().includes(q) || (song.artist || '').toLowerCase().includes(q);
                 el.style.display = match ? '' : 'none';
+                if (match) visibleCount++;
             });
 
             // Filter karaoke cards
@@ -244,6 +334,9 @@ class KaraokePlayer {
                     el.style.display = match ? '' : 'none';
                 });
             }
+
+            // Show YouTube search section when no local results
+            this._updateYtSection(q, visibleCount);
         });
 
         if (clearBtn) {
@@ -253,6 +346,153 @@ class KaraokePlayer {
                 input.focus();
             });
         }
+    }
+
+    _updateYtSection(query, visibleCount) {
+        let ytSection = document.getElementById('ytSearchSection');
+
+        if (!query) {
+            if (ytSection) ytSection.style.display = 'none';
+            return;
+        }
+
+        // Create YouTube section if doesn't exist
+        if (!ytSection) {
+            ytSection = document.createElement('div');
+            ytSection.id = 'ytSearchSection';
+            ytSection.className = 'home-section yt-search-section';
+            const allSongsSection = document.getElementById('allSongsSection');
+            allSongsSection.parentNode.insertBefore(ytSection, allSongsSection.nextSibling);
+        }
+
+        ytSection.style.display = '';
+
+        if (visibleCount > 0) {
+            // There are local results, show subtle YouTube option
+            ytSection.innerHTML = `
+                <div class="yt-search-hint">
+                    <span>Pas ce que vous cherchez ?</span>
+                    <button class="btn-yt-search" id="ytSearchBtn">
+                        <i class="fas fa-search"></i> Recherche Avancé
+                    </button>
+                </div>`;
+        } else {
+            // No local results, show prominent YouTube search
+            ytSection.innerHTML = `
+                <div class="yt-no-results">
+                    <i class="fas fa-search"></i>
+                    <p>Aucun résultat local pour « <strong>${this._esc(query)}</strong> »</p>
+                    <button class="btn-yt-search btn-yt-prominent" id="ytSearchBtn">
+                        <i class="fab fa-youtube"></i> Recherche Avancé
+                    </button>
+                </div>
+                <div class="yt-results" id="ytResults"></div>`;
+        }
+
+        const btn = document.getElementById('ytSearchBtn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                const q = document.getElementById('searchInput').value.trim();
+                if (q) this._searchYouTube(q);
+            });
+        }
+    }
+
+    async _searchYouTube(query) {
+        const ytResults = document.getElementById('ytResults') || (() => {
+            const div = document.createElement('div');
+            div.id = 'ytResults';
+            div.className = 'yt-results';
+            document.getElementById('ytSearchSection').appendChild(div);
+            return div;
+        })();
+
+        ytResults.innerHTML = `
+            <div class="yt-loading">
+                <i class="fas fa-spinner fa-spin"></i> Recherche YouTube...
+            </div>`;
+
+        try {
+            const resp = await fetch(`/api/yt-search?q=${encodeURIComponent(query)}`);
+            const results = await resp.json();
+
+            if (!resp.ok || !results.length) {
+                ytResults.innerHTML = '<p class="yt-empty">Aucun résultat YouTube</p>';
+                return;
+            }
+
+            ytResults.innerHTML = results.map(r => `
+                <div class="yt-result-item" data-url="${this._esc(r.url)}">
+                    <div class="yt-result-thumb">
+                        ${r.thumbnail ? `<img src="${this._esc(r.thumbnail)}" alt="">` : '<i class="fas fa-music"></i>'}
+                        <span class="yt-result-duration">${this._formatDuration(r.duration)}</span>
+                    </div>
+                    <div class="yt-result-info">
+                        <div class="yt-result-title">${this._esc(r.title)}</div>
+                        <div class="yt-result-channel">${this._esc(r.channel)}</div>
+                    </div>
+                    <button class="btn-yt-download" title="Télécharger">
+                        <i class="fas fa-download"></i>
+                    </button>
+                </div>
+            `).join('');
+
+            // Bind download buttons
+            ytResults.querySelectorAll('.yt-result-item').forEach(el => {
+                const dlBtn = el.querySelector('.btn-yt-download');
+                dlBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    this._downloadFromYouTube(el.dataset.url, dlBtn);
+                });
+            });
+
+        } catch (err) {
+            ytResults.innerHTML = '<p class="yt-empty">Erreur de recherche YouTube</p>';
+        }
+    }
+
+    async _downloadFromYouTube(url, btn) {
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        try {
+            const resp = await fetch('/api/yt-download', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ url })
+            });
+            const data = await resp.json();
+
+            if (!resp.ok) {
+                btn.innerHTML = '<i class="fas fa-times"></i>';
+                btn.title = data.error || 'Erreur';
+                return;
+            }
+
+            btn.innerHTML = '<i class="fas fa-check"></i>';
+            btn.classList.add('btn-yt-done');
+            btn.title = 'Ajouté !';
+
+            // Reload songs and optionally play the new song
+            await this.loadSongs();
+
+            // Auto-play the downloaded song
+            if (data.song_id) {
+                this.selectSong(data.song_id);
+                setTimeout(() => this.play(), 500);
+            }
+
+        } catch (err) {
+            btn.innerHTML = '<i class="fas fa-times"></i>';
+            btn.disabled = false;
+        }
+    }
+
+    _formatDuration(seconds) {
+        if (!seconds) return '';
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m}:${s.toString().padStart(2, '0')}`;
     }
 
     showSongList() {
@@ -267,6 +507,17 @@ class KaraokePlayer {
         const song = this.songs.find(s => s.id === songId);
         if (!song) return;
 
+        const myToken = ++this._playToken;
+
+        // Stop current playback and clear buffers
+        this._stopSources();
+        this.bufV = null;
+        this.bufI = null;
+        this.hasInstrumental = false;
+        this.startOffset = 0;
+        this.isPlaying = false;
+        this.updatePlayIcon();
+
         this.currentSong = song;
 
         // Update UI
@@ -274,45 +525,56 @@ class KaraokePlayer {
         this.songArtist.textContent = song.artist || 'Artiste inconnu';
         this.nowPlayingLabel.textContent = song.title;
 
-        // Cover art
         if (song.has_cover) {
             this.coverArt.innerHTML = `<img src="/api/cover/${this._esc(song.id)}" alt="${this._esc(song.title)}">`;
         } else {
             this.coverArt.innerHTML = '<i class="fas fa-music"></i>';
         }
-
-        // Dynamic background gradient based on song
         this.updateBackground(song);
 
-        // Load audio sources (vocals + instrumental séparés)
-        if (song.has_vocals && song.has_instrumental) {
-            this.audioVocals.src = `/api/audio/${song.id}/vocals`;
-            this.audioInstrumental.src = `/api/audio/${song.id}/instrumental`;
-            this.audioVocals.load();
-            this.audioInstrumental.load();
-            this.trackSlidersContainer.classList.remove('disabled');
-        } else {
-            // Fallback: jouer l'original sur la piste vocals
-            this.audioVocals.src = `/api/audio/${song.id}/original`;
-            this.audioVocals.load();
-            this.audioInstrumental.src = '';
-            this.trackSlidersContainer.classList.add('disabled');
+        // Reset gains
+        this.gainV.gain.value = 1;
+        this.gainI.gain.value = 1;
+        this.vocalsSlider.value = 100;
+        this.instrumentalSlider.value = 100;
+
+        // Decode the audio buffers — single decoder = perfect sync between tracks
+        try {
+            if (song.has_vocals && song.has_instrumental) {
+                const [vBuf, iBuf] = await Promise.all([
+                    this._fetchAudioBuffer(`/api/audio/${song.id}/vocals`),
+                    this._fetchAudioBuffer(`/api/audio/${song.id}/instrumental`),
+                ]);
+                if (myToken !== this._playToken) return;
+                this.bufV = vBuf;
+                this.bufI = iBuf;
+                this.hasInstrumental = true;
+                this.trackSlidersContainer.classList.remove('disabled');
+            } else {
+                const buf = await this._fetchAudioBuffer(`/api/audio/${song.id}/original`);
+                if (myToken !== this._playToken) return;
+                this.bufV = buf;
+                this.hasInstrumental = false;
+                this.trackSlidersContainer.classList.add('disabled');
+            }
+        } catch (e) {
+            console.error('audio decode failed', e);
+            return;
         }
 
-        // Load lyrics
         await this.loadLyrics(song.id);
+        if (myToken !== this._playToken) return;
 
-        // Show player
         this.songListView.style.display = 'none';
         this.nowPlayingView.style.display = '';
-
-        // Highlight in list
         this._updateListHighlight();
-
-        // Reset state
-        this.isPlaying = false;
         this.currentLineIndex = -1;
-        this.updatePlayIcon();
+
+        // Auto-play
+        if (this.audioCtx.state === 'suspended') {
+            try { await this.audioCtx.resume(); } catch {}
+        }
+        this._startAt(0);
     }
 
     async loadLyrics(songId) {
@@ -394,27 +656,25 @@ class KaraokePlayer {
 
     // ─── PLAYBACK ───────────────────────────────────────────────────────────
 
-    togglePlay() {
-        if (this.isPlaying) {
-            this.pause();
-        } else {
-            this.play();
+    async togglePlay() {
+        if (!this.bufV) return;
+        if (this.audioCtx.state === 'suspended') {
+            try { await this.audioCtx.resume(); } catch {}
         }
+        if (this.isPlaying) this.pause();
+        else this.play();
     }
 
     play() {
-        this.audioVocals.play();
-        if (this.audioInstrumental.src) {
-            this.audioInstrumental.currentTime = this.audioVocals.currentTime;
-            this.audioInstrumental.play();
-        }
-        this.isPlaying = true;
-        this.updatePlayIcon();
+        if (!this.bufV) return;
+        this._startAt(this.startOffset);
     }
 
     pause() {
-        this.audioVocals.pause();
-        this.audioInstrumental.pause();
+        if (!this.isPlaying) return;
+        const pos = this._currentTime();
+        this._stopSources();
+        this.startOffset = pos;
         this.isPlaying = false;
         this.updatePlayIcon();
     }
@@ -424,62 +684,32 @@ class KaraokePlayer {
     }
 
     seekRelative(seconds) {
-        const newTime = Math.max(0, Math.min(
-            this.audioVocals.duration || 0,
-            this.audioVocals.currentTime + seconds
-        ));
-        this.audioVocals.currentTime = newTime;
-        if (this.audioInstrumental.src) {
-            this.audioInstrumental.currentTime = newTime;
-        }
+        if (!this.bufV) return;
+        const newTime = Math.max(0, Math.min(this._duration(), this._currentTime() + seconds));
+        if (this.isPlaying) this._startAt(newTime);
+        else this.startOffset = newTime;
     }
 
     setVolume(val) {
+        // Master volume × per-track gains
         const v = val / 100;
-        this.audioVocals.volume = v * (this.vocalsSlider.value / 100);
-        this.audioInstrumental.volume = v * (this.instrumentalSlider.value / 100);
+        this.gainMaster.gain.value = v;
     }
 
-    onMetadataLoaded() {
-        this.totalTimeEl.textContent = this.formatTime(this.audioVocals.duration);
-    }
-
-    onTimeUpdate() {
-        if (this.isSeeking) return;
-
-        const current = this.audioVocals.currentTime;
-        const duration = this.audioVocals.duration || 1;
-        const pct = (current / duration) * 100;
-
-        this.progressPlayed.style.width = pct + '%';
-        this.progressThumb.style.left = pct + '%';
-        this.currentTimeEl.textContent = this.formatTime(current);
-
-        this.updateLyricsHighlight(current);
-    }
-
-    onEnded() {
-        this.isPlaying = false;
-        this.updatePlayIcon();
-        this.audioInstrumental.pause();
-        this.nextSong(true);
-    }
-
-    nextSong(autoPlay = false) {
+    nextSong() {
         if (!this.currentSong) return;
         const idx = this.songs.findIndex(s => s.id === this.currentSong.id);
         if (idx < this.songs.length - 1) {
             this.selectSong(this.songs[idx + 1].id);
-            if (autoPlay) setTimeout(() => this.play(), 500);
         }
     }
 
     prevSong() {
         if (!this.currentSong) return;
         // If more than 3 seconds in, restart the song
-        if (this.audioVocals.currentTime > 3) {
-            this.audioVocals.currentTime = 0;
-            if (this.audioInstrumental.src) this.audioInstrumental.currentTime = 0;
+        if (this._currentTime() > 3) {
+            if (this.isPlaying) this._startAt(0);
+            else this.startOffset = 0;
             return;
         }
         const idx = this.songs.findIndex(s => s.id === this.currentSong.id);
@@ -499,6 +729,7 @@ class KaraokePlayer {
 
     startSeek(e) {
         e.preventDefault();
+        if (!this.bufV) return;
         this.isSeeking = true;
 
         const onMove = (ev) => {
@@ -509,7 +740,7 @@ class KaraokePlayer {
 
             this.progressPlayed.style.width = (pct * 100) + '%';
             this.progressThumb.style.left = (pct * 100) + '%';
-            this.currentTimeEl.textContent = this.formatTime(pct * (this.audioVocals.duration || 0));
+            this.currentTimeEl.textContent = this.formatTime(pct * this._duration());
         };
 
         const onEnd = (ev) => {
@@ -518,11 +749,9 @@ class KaraokePlayer {
             let pct = (clientX - rect.left) / rect.width;
             pct = Math.max(0, Math.min(1, pct));
 
-            const seekTime = pct * (this.audioVocals.duration || 0);
-            this.audioVocals.currentTime = seekTime;
-            if (this.audioInstrumental.src) {
-                this.audioInstrumental.currentTime = seekTime;
-            }
+            const seekTime = pct * this._duration();
+            if (this.isPlaying) this._startAt(seekTime);
+            else this.startOffset = seekTime;
 
             this.isSeeking = false;
             document.removeEventListener('mousemove', onMove);

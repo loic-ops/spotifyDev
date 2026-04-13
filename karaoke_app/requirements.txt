@@ -13,3 +13,15 @@ torchaudio>=2.0.0,<2.2
 ffmpeg-python==0.2.0
 openai-whisper==20231117
 python-dotenv==1.0.0
+gunicorn==21.2.0
+
+alembic==1.13.1
+
+rq==1.16.1
+redis==5.0.1
+
+faster-whisper==1.1.0
+av>=12.0.0
+
+mutagen==1.47.0
+syncedlyrics==1.0.1

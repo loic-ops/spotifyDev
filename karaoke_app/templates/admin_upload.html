@@ -6,11 +6,10 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Importer - KaraoKing Admin</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
 </head>
 <body>
     <div class="admin-layout">
-        <!-- Sidebar -->
         <aside class="sidebar">
             <div class="sidebar-logo">
                 <i class="fas fa-music"></i>
@@ -23,8 +22,14 @@
                 <a href="/admin/upload" class="nav-item active">
                     <i class="fas fa-cloud-upload-alt"></i> Importer
                 </a>
-                <a href="/" class="nav-item" target="_blank">
-                    <i class="fas fa-play-circle"></i> Lecteur
+                <a href="/admin/catalogue" class="nav-item">
+                    <i class="fas fa-folder-tree"></i> Catalogue
+                </a>
+                <a href="/admin/analytics" class="nav-item">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </a>
+                <a href="/admin/alerts" class="nav-item">
+                    <i class="fas fa-bell"></i> Alertes
                 </a>
                 <a href="/admin/logout" class="nav-item nav-logout">
                     <i class="fas fa-sign-out-alt"></i> Déconnexion
@@ -32,7 +37,6 @@
             </nav>
         </aside>
 
-        <!-- Main Content -->
         <main class="main-content">
             <header class="admin-header">
                 <h1>Importer une chanson</h1>
@@ -43,7 +47,6 @@
 
             <div class="upload-card">
                 <form id="uploadForm" enctype="multipart/form-data">
-                    <!-- Song Title & Artist -->
                     <div class="form-row">
                         <div class="form-group">
                             <label for="songTitle">Titre de la chanson</label>
@@ -55,7 +58,7 @@
                         </div>
                     </div>
 
-                    <!-- Audio File -->
+                    <!-- audio -->
                     <div class="form-group">
                         <label>Fichier audio <span class="required">*</span></label>
                         <div class="file-drop" id="audioDropZone">
@@ -71,7 +74,7 @@
                         </div>
                     </div>
 
-                    <!-- Lyrics File -->
+                    <!-- paroles -->
                     <div class="form-group">
                         <label>Fichier de paroles (SRT ou LRC)</label>
                         <div class="file-drop file-drop-sm" id="srtDropZone">
@@ -86,7 +89,7 @@
                         </div>
                     </div>
 
-                    <!-- Cover Art -->
+                    <!-- pochette -->
                     <div class="form-group">
                         <label>Pochette d'album</label>
                         <div class="file-drop file-drop-sm" id="coverDropZone">
@@ -101,7 +104,6 @@
                         </div>
                     </div>
 
-                    <!-- Separation & Transcription Options -->
                     <div class="form-group">
                         <label>Options de traitement</label>
                         <div class="checkbox-group">
@@ -118,7 +120,6 @@
                         </div>
                     </div>
 
-                    <!-- Submit -->
                     <div class="form-actions">
                         <button type="submit" class="btn btn-accent btn-lg" id="submitBtn" disabled>
                             <i class="fas fa-cloud-upload-alt"></i> Importer la chanson
@@ -126,7 +127,6 @@
                     </div>
                 </form>
 
-                <!-- Progress -->
                 <div class="upload-progress" id="uploadProgress" style="display:none;">
                     <div class="progress-bar-container">
                         <div class="progress-bar-fill" id="progressFill"></div>
@@ -138,34 +138,31 @@
     </div>
 
     <script>
-        // ─── CSRF Token ────────────────────────────────────
         let csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
 
         let audioFileData = null;
         let srtFileData = null;
         let coverFileData = null;
 
-        // Audio drop zone
-        const audioDropZone = document.getElementById('audioDropZone');
-        const audioInput = document.getElementById('audioFile');
+        // drop zones setup
+        var audioDropZone = document.getElementById('audioDropZone');
+        var audioInput = document.getElementById('audioFile');
         audioDropZone.addEventListener('click', () => audioInput.click());
         audioDropZone.addEventListener('dragover', e => { e.preventDefault(); audioDropZone.classList.add('drag-over'); });
         audioDropZone.addEventListener('dragleave', () => audioDropZone.classList.remove('drag-over'));
         audioDropZone.addEventListener('drop', e => { e.preventDefault(); audioDropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setAudio(e.dataTransfer.files[0]); });
         audioInput.addEventListener('change', e => { if (e.target.files[0]) setAudio(e.target.files[0]); });
 
-        // SRT drop zone
-        const srtDropZone = document.getElementById('srtDropZone');
-        const srtInput = document.getElementById('srtFile');
+        var srtDropZone = document.getElementById('srtDropZone');
+        var srtInput = document.getElementById('srtFile');
         srtDropZone.addEventListener('click', () => srtInput.click());
         srtDropZone.addEventListener('dragover', e => { e.preventDefault(); srtDropZone.classList.add('drag-over'); });
         srtDropZone.addEventListener('dragleave', () => srtDropZone.classList.remove('drag-over'));
         srtDropZone.addEventListener('drop', e => { e.preventDefault(); srtDropZone.classList.remove('drag-over'); if (e.dataTransfer.files[0]) setSRT(e.dataTransfer.files[0]); });
         srtInput.addEventListener('change', e => { if (e.target.files[0]) setSRT(e.target.files[0]); });
 
-        // Cover drop zone
-        const coverDropZone = document.getElementById('coverDropZone');
-        const coverInput = document.getElementById('coverFile');
+        var coverDropZone = document.getElementById('coverDropZone');
+        var coverInput = document.getElementById('coverFile');
         coverDropZone.addEventListener('click', () => coverInput.click());
         coverDropZone.addEventListener('dragover', e => { e.preventDefault(); coverDropZone.classList.add('drag-over'); });
         coverDropZone.addEventListener('dragleave', () => coverDropZone.classList.remove('drag-over'));
@@ -213,21 +210,21 @@
             coverDropZone.style.display = '';
         }
 
-        // Form submit
+        // soumission du formulaire
         document.getElementById('uploadForm').addEventListener('submit', async (e) => {
             e.preventDefault();
             if (!audioFileData) return;
 
-            const formData = new FormData();
-            formData.append('file', audioFileData);
-            formData.append('artist', document.getElementById('artistName').value || 'Artiste inconnu');
-            if (srtFileData) formData.append('lyrics_file', srtFileData);
-            if (coverFileData) formData.append('cover_file', coverFileData);
-            formData.append('_csrf_token', csrfToken);
+            var fd = new FormData();
+            fd.append('file', audioFileData);
+            fd.append('artist', document.getElementById('artistName').value || 'Artiste inconnu');
+            if (srtFileData) fd.append('lyrics_file', srtFileData);
+            if (coverFileData) fd.append('cover_file', coverFileData);
+            fd.append('_csrf_token', csrfToken);
 
-            const progress = document.getElementById('uploadProgress');
-            const progressText = document.getElementById('progressText');
-            const progressFill = document.getElementById('progressFill');
+            var progress = document.getElementById('uploadProgress');
+            var progressText = document.getElementById('progressText');
+            var progressFill = document.getElementById('progressFill');
 
             progress.style.display = 'block';
             document.getElementById('submitBtn').disabled = true;
@@ -235,51 +232,86 @@
             progressText.textContent = 'Import de la chanson...';
 
             try {
-                const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+                const resp = await fetch('/api/upload', { method: 'POST', body: fd });
                 const data = await resp.json();
 
                 if (!resp.ok) throw new Error(data.error);
 
-                progressFill.style.width = '60%';
+                progressFill.style.width = '50%';
                 progressText.textContent = 'Chanson importée !';
 
-                // Auto-separate if checked
+                var jobIds = [];
+
+                // separation si cochée
                 if (document.getElementById('autoSeparate').checked) {
-                    progressText.textContent = 'Separation audio en cours (cela peut prendre du temps)...';
-                    const sepResp = await fetch(`/api/separate/${data.song_id}`, {
+                    progressText.textContent = 'Séparation audio lancée (traitement en arrière-plan)...';
+                    let sepResp = await fetch(`/api/separate/${data.song_id}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                         body: JSON.stringify({})
                     });
-
                     if (sepResp.ok) {
-                        progressFill.style.width = '80%';
-                        progressText.textContent = 'Separation terminee !';
+                        let sepData = await sepResp.json();
+                        jobIds.push({ id: sepData.job_id, label: 'Séparation' });
                     }
                 }
 
-                // Auto-transcribe if checked and no lyrics file provided
+                // transcription si cochée et pas de fichier paroles
                 if (document.getElementById('autoTranscribe').checked && !srtFileData) {
-                    progressFill.style.width = '85%';
-                    progressText.textContent = 'Transcription des paroles en cours (Whisper)...';
-                    const transResp = await fetch(`/api/transcribe/${data.song_id}`, {
+                    progressText.textContent = 'Transcription lancée (traitement en arrière-plan)...';
+                    fetch(`/api/transcribe/${data.song_id}`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
                         body: JSON.stringify({ model: 'base' })
+                    }).then(r => r.json()).then(transData => {
+                        jobIds.push({ id: transData.job_id, label: 'Transcription' });
+                    }).catch(() => {});
+                    // petit délai pour laisser le push se faire
+                    await new Promise(r => setTimeout(r, 500));
+                }
+
+                if (jobIds.length) {
+                    progressFill.style.width = '60%';
+                    progressText.textContent = jobIds.length + ' job(s) en cours — suivi en temps réel...';
+
+                    await new Promise((resolve) => {
+                        const checkAll = async () => {
+                            let allDone = true;
+                            let totalProgress = 50;
+                            for (const job of jobIds) {
+                                try {
+                                    var r = await fetch(`/api/admin/jobs/${job.id}`);
+                                    var j = await r.json();
+                                    if (j.status === 'finished') {
+                                        job.done = true;
+                                    } else if (j.status === 'failed') {
+                                        job.done = true;
+                                        job.error = true;
+                                    } else {
+                                        allDone = false;
+                                        totalProgress += (j.progress || 0) * (40 / jobIds.length / 100);
+                                    }
+                                    if (job.done && !job.error) totalProgress += 40 / jobIds.length;
+                                } catch { allDone = false; }
+                            }
+                            progressFill.style.width = Math.min(95, totalProgress) + '%';
+                            var running = jobIds.filter(j => !j.done).map(j => j.label).join(', ');
+                            if (running) progressText.textContent = 'En cours : ' + running + '...';
+                            if (allDone) resolve();
+                            else setTimeout(checkAll, 2500);
+                        };
+                        checkAll();
                     });
 
-                    if (transResp.ok) {
-                        const transData = await transResp.json();
-                        progressFill.style.width = '95%';
-                        progressText.textContent = `Transcription terminee ! ${transData.segments} segments.`;
-                    } else {
-                        progressText.textContent = 'Transcription echouee, vous pourrez relancer depuis le tableau de bord.';
+                    var failures = jobIds.filter(j => j.error);
+                    if (failures.length) {
+                        progressText.textContent = failures.map(j => j.label).join(', ') + ' échoué(s). Relancez depuis le tableau de bord.';
                         await new Promise(r => setTimeout(r, 2000));
                     }
                 }
 
                 progressFill.style.width = '100%';
-                progressText.textContent = 'Termine ! Redirection...';
+                progressText.textContent = 'Terminé ! Redirection...';
                 setTimeout(() => { window.location.href = '/admin'; }, 1000);
 
             } catch (err) {

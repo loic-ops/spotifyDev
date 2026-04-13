@@ -1,0 +1,465 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>Catalogue - KaraoKing Admin</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='vendor/fontawesome/all.min.css') }}">
+</head>
+<body>
+    <div class="admin-layout">
+        <aside class="sidebar">
+            <div class="sidebar-logo">
+                <i class="fas fa-music"></i>
+                <span>KaraoKing Admin</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/admin" class="nav-item">
+                    <i class="fas fa-th-large"></i> Tableau de bord
+                </a>
+                <a href="/admin/upload" class="nav-item">
+                    <i class="fas fa-cloud-upload-alt"></i> Importer
+                </a>
+                <a href="/admin/catalogue" class="nav-item active">
+                    <i class="fas fa-folder-tree"></i> Catalogue
+                </a>
+                <a href="/admin/analytics" class="nav-item">
+                    <i class="fas fa-chart-line"></i> Analytics
+                </a>
+                <a href="/admin/alerts" class="nav-item">
+                    <i class="fas fa-bell"></i> Alertes
+                </a>
+                <a href="/admin/logout" class="nav-item nav-logout">
+                    <i class="fas fa-sign-out-alt"></i> Deconnexion
+                </a>
+            </nav>
+        </aside>
+
+        <main class="main-content">
+            <header class="admin-header">
+                <h1><i class="fas fa-folder-tree"></i> Catalogue</h1>
+                <div class="admin-header-actions">
+                    <div class="filter-chips" id="catTabs">
+                        <button class="filter-chip active" data-tab="genres">Genres</button>
+                        <button class="filter-chip" data-tab="artists">Artistes</button>
+                        <button class="filter-chip" data-tab="playlists">Playlists</button>
+                    </div>
+                </div>
+            </header>
+
+            <!-- genres -->
+            <div class="cat-section" id="cat-genres">
+                <div class="cat-toolbar">
+                    <button class="btn btn-accent" onclick="openGenreModal()"><i class="fas fa-plus"></i> Nouveau genre</button>
+                </div>
+                <div class="genre-grid-admin" id="genresList"></div>
+            </div>
+
+            <!-- artistes -->
+            <div class="cat-section" id="cat-artists" style="display:none;">
+                <div class="cat-toolbar">
+                    <button class="btn btn-accent" onclick="openArtistModal()"><i class="fas fa-plus"></i> Nouvel artiste</button>
+                </div>
+                <div class="songs-table-wrapper">
+                    <table class="songs-table">
+                        <thead>
+                            <tr><th>Nom</th><th>Slug</th><th>Chansons</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody id="artistsList"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- playlists -->
+            <div class="cat-section" id="cat-playlists" style="display:none;">
+                <div class="cat-toolbar">
+                    <button class="btn btn-accent" onclick="openPlaylistModal()"><i class="fas fa-plus"></i> Nouvelle playlist</button>
+                </div>
+                <div class="songs-table-wrapper">
+                    <table class="songs-table">
+                        <thead>
+                            <tr><th>Nom</th><th>Description</th><th>Chansons</th><th>Visible</th><th>Actions</th></tr>
+                        </thead>
+                        <!-- TODO: drag & drop pour réordonner -->
+                        <tbody id="playlistsList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- genre modal -->
+    <div class="modal-overlay" id="genreModal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="genreModalTitle">Nouveau genre</h3>
+                <button class="btn-icon" onclick="closeGenreModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="genreId">
+                <div class="form-group"><label>Nom</label><input type="text" id="genreName" class="form-input"></div>
+                <div class="form-row">
+                    <div class="form-group"><label>Couleur</label><input type="color" id="genreColor" class="form-input" value="#7C4DFF"></div>
+                    <div class="form-group"><label>Emoji</label><input type="text" id="genreEmoji" class="form-input" value="🎵" maxlength="4"></div>
+                </div>
+                <div class="form-group">
+                    <label class="checkbox-label"><input type="checkbox" id="genreVisible" checked> <span>Visible côté client</span></label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" onclick="closeGenreModal()">Annuler</button>
+                <button class="btn btn-accent" onclick="saveGenre()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- artist modal -->
+    <div class="modal-overlay" id="artistModal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="artistModalTitle">Nouvel artiste</h3>
+                <button class="btn-icon" onclick="closeArtistModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="artistId">
+                <div class="form-group"><label>Nom</label><input type="text" id="artistName" class="form-input"></div>
+                <div class="form-group"><label>Bio</label><textarea id="artistBio" class="form-input" rows="3"></textarea></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" onclick="closeArtistModal()">Annuler</button>
+                <button class="btn btn-accent" onclick="saveArtist()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- playlist modal -->
+    <div class="modal-overlay" id="playlistModal" style="display:none;">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="playlistModalTitle">Nouvelle playlist</h3>
+                <button class="btn-icon" onclick="closePlaylistModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="playlistId">
+                <div class="form-group"><label>Nom</label><input type="text" id="playlistName" class="form-input"></div>
+                <div class="form-group"><label>Description</label><textarea id="playlistDesc" class="form-input" rows="2"></textarea></div>
+                <div class="form-group">
+                    <label class="checkbox-label"><input type="checkbox" id="playlistVisible" checked> <span>Visible côté client</span></label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" onclick="closePlaylistModal()">Annuler</button>
+                <button class="btn btn-accent" onclick="savePlaylist()">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- songs assignment -->
+    <div class="modal-overlay" id="songsModal" style="display:none;">
+        <div class="modal" style="max-width:700px;max-height:85vh;">
+            <div class="modal-header">
+                <h3 id="songsModalTitle">Gerer les chansons</h3>
+                <button class="btn-icon" onclick="closeSongsModal()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="modal-body" style="overflow-y:auto;max-height:60vh;">
+                <input type="hidden" id="songsTargetType">
+                <input type="hidden" id="songsTargetId">
+                <div class="songs-assign-list" id="songsAssignList"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline-light" onclick="closeSongsModal()">Fermer</button>
+                <button class="btn btn-accent" onclick="saveSongsAssignment()"><i class="fas fa-save"></i> Enregistrer</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+        var esc = function(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+
+        var currentTab = 'genres';
+
+        document.querySelectorAll('#catTabs .filter-chip').forEach(c => {
+            c.addEventListener('click', () => {
+                document.querySelectorAll('#catTabs .filter-chip').forEach(x => x.classList.remove('active'));
+                c.classList.add('active');
+                currentTab = c.dataset.tab;
+                document.querySelectorAll('.cat-section').forEach(s => s.style.display = 'none');
+                document.getElementById('cat-' + currentTab).style.display = '';
+                loadCurrentTab();
+            });
+        });
+
+        function loadCurrentTab() {
+            if (currentTab === 'genres') loadGenres();
+            else if (currentTab === 'artists') loadArtists();
+            else loadPlaylists();
+        }
+
+        // genres
+        async function loadGenres() {
+            var list = document.getElementById('genresList');
+            var resp = await fetch('/api/admin/genres');
+            var data = await resp.json();
+            if (!data.length) { list.innerHTML = '<div class="empty-state"><p>Aucun genre. Créez-en un !</p></div>'; return; }
+            list.innerHTML = data.map(g => `
+                <div class="genre-card-admin" style="background:${esc(g.color)}">
+                    <div class="genre-card-emoji">${esc(g.emoji)}</div>
+                    <div class="genre-card-name">${esc(g.name)}</div>
+                    <div class="genre-card-count">${g.songs_count} chansons</div>
+                    <div class="genre-card-actions">
+                        <button onclick="openSongsModal('genre', ${g.id}, '${esc(g.name)}')" title="Gerer les chansons"><i class="fas fa-music"></i></button>
+                        <button onclick='editGenre(${JSON.stringify(g)})' title="Modifier"><i class="fas fa-pen"></i></button>
+                        <button onclick="deleteGenre(${g.id})" title="Supprimer"><i class="fas fa-trash"></i></button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function openGenreModal() {
+            document.getElementById('genreId').value = '';
+            document.getElementById('genreName').value = '';
+            document.getElementById('genreColor').value = '#7C4DFF';
+            document.getElementById('genreEmoji').value = '🎵';
+            document.getElementById('genreVisible').checked = true;
+            document.getElementById('genreModalTitle').textContent = 'Nouveau genre';
+            document.getElementById('genreModal').style.display = 'flex';
+        }
+
+        function editGenre(g) {
+            document.getElementById('genreId').value = g.id;
+            document.getElementById('genreName').value = g.name;
+            document.getElementById('genreColor').value = g.color;
+            document.getElementById('genreEmoji').value = g.emoji;
+            document.getElementById('genreVisible').checked = g.visible;
+            document.getElementById('genreModalTitle').textContent = 'Modifier genre';
+            document.getElementById('genreModal').style.display = 'flex';
+        }
+
+        function closeGenreModal() { document.getElementById('genreModal').style.display = 'none'; }
+
+        async function saveGenre() {
+            var id = document.getElementById('genreId').value;
+            var body = {
+                name: document.getElementById('genreName').value,
+                color: document.getElementById('genreColor').value,
+                emoji: document.getElementById('genreEmoji').value,
+                visible: document.getElementById('genreVisible').checked,
+            };
+            var url = id ? '/api/admin/genres/' + id : '/api/admin/genres';
+            fetch(url, {
+                method: id ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify(body)
+            }).then(resp => {
+                if (resp.ok) { closeGenreModal(); loadGenres(); }
+                else resp.json().then(d => alert('Erreur: ' + d.error));
+            });
+        }
+
+        async function deleteGenre(id) {
+            if (!confirm('Supprimer ce genre ?')) return;
+            await fetch('/api/admin/genres/' + id, { method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken } });
+            loadGenres();
+        }
+
+        // artistes
+        async function loadArtists() {
+            var tbody = document.getElementById('artistsList');
+            var resp = await fetch('/api/admin/artists');
+            var data = await resp.json();
+            if (!data.length) { tbody.innerHTML = '<tr><td colspan="4" class="empty-state"><p>Aucun artiste</p></td></tr>'; return; }
+            tbody.innerHTML = data.map(a => `
+                <tr>
+                    <td><strong>${esc(a.name)}</strong></td>
+                    <td class="text-muted">${esc(a.slug)}</td>
+                    <td>${a.songs_count}</td>
+                    <td class="actions-cell">
+                        <button class="btn-sm btn-outline" onclick='editArtist(${JSON.stringify(a)})'><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-danger" onclick="deleteArtist(${a.id})"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openArtistModal() {
+            document.getElementById('artistId').value = '';
+            document.getElementById('artistName').value = '';
+            document.getElementById('artistBio').value = '';
+            document.getElementById('artistModalTitle').textContent = 'Nouvel artiste';
+            document.getElementById('artistModal').style.display = 'flex';
+        }
+
+        function editArtist(a) {
+            document.getElementById('artistId').value = a.id;
+            document.getElementById('artistName').value = a.name;
+            document.getElementById('artistBio').value = a.bio || '';
+            document.getElementById('artistModalTitle').textContent = 'Modifier artiste';
+            document.getElementById('artistModal').style.display = 'flex';
+        }
+
+        function closeArtistModal() { document.getElementById('artistModal').style.display = 'none'; }
+
+        async function saveArtist() {
+            var id = document.getElementById('artistId').value;
+            var body = {
+                name: document.getElementById('artistName').value,
+                bio: document.getElementById('artistBio').value,
+            };
+            var url = id ? '/api/admin/artists/' + id : '/api/admin/artists';
+            var resp = await fetch(url, {
+                method: id ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify(body)
+            });
+            if (resp.ok) { closeArtistModal(); loadArtists(); }
+        }
+
+        async function deleteArtist(id) {
+            if (!confirm('Supprimer cet artiste ?')) return;
+            await fetch('/api/admin/artists/' + id, { method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken } });
+            loadArtists();
+        }
+
+        // playlists
+        async function loadPlaylists() {
+            var tbody = document.getElementById('playlistsList');
+            var resp = await fetch('/api/admin/playlists');
+            var data = await resp.json();
+            if (!data.length) { tbody.innerHTML = '<tr><td colspan="5" class="empty-state"><p>Aucune playlist</p></td></tr>'; return; }
+            tbody.innerHTML = data.map(p => `
+                <tr>
+                    <td><strong>${esc(p.name)}</strong></td>
+                    <td class="text-muted">${esc(p.description || '-')}</td>
+                    <td>${p.song_count}</td>
+                    <td>${p.visible ? '<i class="fas fa-eye" style="color:#1DB954"></i>' : '<i class="fas fa-eye-slash" style="color:#999"></i>'}</td>
+                    <td class="actions-cell">
+                        <button class="btn-sm btn-accent" onclick="openSongsModal('playlist', ${p.id}, '${esc(p.name)}')"><i class="fas fa-music"></i> Chansons</button>
+                        <button class="btn-sm btn-outline" onclick='editPlaylist(${JSON.stringify(p)})'><i class="fas fa-pen"></i></button>
+                        <button class="btn-sm btn-danger" onclick="deletePlaylist(${p.id})"><i class="fas fa-trash"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function openPlaylistModal() {
+            document.getElementById('playlistId').value = '';
+            document.getElementById('playlistName').value = '';
+            document.getElementById('playlistDesc').value = '';
+            document.getElementById('playlistVisible').checked = true;
+            document.getElementById('playlistModalTitle').textContent = 'Nouvelle playlist';
+            document.getElementById('playlistModal').style.display = 'flex';
+        }
+
+        function editPlaylist(p) {
+            document.getElementById('playlistId').value = p.id;
+            document.getElementById('playlistName').value = p.name;
+            document.getElementById('playlistDesc').value = p.description || '';
+            document.getElementById('playlistVisible').checked = p.visible;
+            document.getElementById('playlistModalTitle').textContent = 'Modifier playlist';
+            document.getElementById('playlistModal').style.display = 'flex';
+        }
+
+        function closePlaylistModal() { document.getElementById('playlistModal').style.display = 'none'; }
+
+        async function savePlaylist() {
+            var id = document.getElementById('playlistId').value;
+            var body = {
+                name: document.getElementById('playlistName').value,
+                description: document.getElementById('playlistDesc').value,
+                visible: document.getElementById('playlistVisible').checked,
+            };
+            var url = id ? '/api/admin/playlists/' + id : '/api/admin/playlists';
+            var resp = await fetch(url, {
+                method: id ? 'PATCH' : 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                body: JSON.stringify(body)
+            });
+            if (resp.ok) { closePlaylistModal(); loadPlaylists(); }
+        }
+
+        async function deletePlaylist(id) {
+            if (!confirm('Supprimer cette playlist ?')) return;
+            await fetch('/api/admin/playlists/' + id, { method: 'DELETE', headers: { 'X-CSRF-Token': csrfToken } });
+            loadPlaylists();
+        }
+
+        // gestion des chansons (assignation genre/playlist)
+        var _allSongs = [];
+
+        async function openSongsModal(type, targetId, targetName) {
+            document.getElementById('songsTargetType').value = type;
+            document.getElementById('songsTargetId').value = targetId;
+            document.getElementById('songsModalTitle').textContent = 'Chansons — ' + targetName;
+
+            if (!_allSongs.length) {
+                var r = await fetch('/api/songs');
+                _allSongs = await r.json();
+            }
+
+            var list = document.getElementById('songsAssignList');
+            list.innerHTML = _allSongs.map(s => {
+                var isAssigned = type === 'genre'
+                    ? String(s.genre_id) === String(targetId)
+                    : false;
+                return `
+                <label class="song-assign-row ${isAssigned ? 'assigned' : ''}">
+                    <input type="checkbox" data-song-id="${esc(s.id)}" ${isAssigned ? 'checked' : ''}>
+                    <span class="song-assign-title">${esc(s.title)}</span>
+                    <span class="song-assign-artist">${esc(s.artist || '')}</span>
+                </label>`;
+            }).join('');
+
+            document.getElementById('songsModal').style.display = 'flex';
+        }
+
+        function closeSongsModal() { document.getElementById('songsModal').style.display = 'none'; }
+
+        async function saveSongsAssignment() {
+            var type = document.getElementById('songsTargetType').value;
+            var targetId = document.getElementById('songsTargetId').value;
+            var checkboxes = document.querySelectorAll('#songsAssignList input[type="checkbox"]');
+
+            if (type === 'genre') {
+                for (var cb of checkboxes) {
+                    var songId = cb.dataset.songId;
+                    var song = _allSongs.find(s => s.id === songId);
+                    var wasAssigned = String(song?.genre_id) === String(targetId);
+                    var isNow = cb.checked;
+
+                    if (isNow && !wasAssigned) {
+                        await fetch('/api/songs/' + songId, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                            body: JSON.stringify({ genre_id: parseInt(targetId) })
+                        });
+                    } else if (!isNow && wasAssigned) {
+                        await fetch('/api/songs/' + songId, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                            body: JSON.stringify({ genre_id: null })
+                        });
+                    }
+                }
+                // refresh cache
+                var r = await fetch('/api/songs');
+                _allSongs = await r.json();
+            } else if (type === 'playlist') {
+                var songIds = Array.from(checkboxes).filter(cb => cb.checked).map(cb => cb.dataset.songId);
+                await fetch('/api/admin/playlists/' + targetId + '/songs', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                    body: JSON.stringify({ song_ids: songIds })
+                });
+            }
+
+            closeSongsModal();
+            loadCurrentTab();
+        }
+
+        document.addEventListener('DOMContentLoaded', loadGenres);
+    </script>
+</body>
+</html>
