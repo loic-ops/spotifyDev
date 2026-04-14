@@ -268,53 +268,64 @@
                 </div>
             </div>
 
-            <!-- ─── Mini-Player (§6.1) — Liquid Glass persistant ──── -->
-            <div class="player-bar miniplayer glass-strong" id="playerBar">
-                <!-- Left: Song info -->
-                <div class="pb-info" id="pbInfo">
-                    <div class="pb-cover" id="pbCover">
-                        <div class="pb-cover-ph"><i class="fas fa-music"></i></div>
-                    </div>
-                    <div class="pb-text">
-                        <div class="pb-title" id="pbTitle">Aucune chanson</div>
-                        <div class="pb-artist" id="pbArtist">-</div>
-                    </div>
+        </main>
+
+        <!-- ═══ PLAYER PANEL (côté droit — style KaraFun) ═══ -->
+        <aside class="player-panel" id="playerPanel">
+            <div class="player-panel-inner">
+                <!-- Lyrics zone -->
+                <div class="pp-lyrics" id="ppLyrics">
+                    <p class="lyrics-placeholder">Sélectionnez une chanson pour commencer</p>
                 </div>
 
-                <!-- Center: Controls + progress -->
-                <div class="pb-center">
-                    <div class="pb-controls">
-                        <button class="pb-btn" id="btnPrev" title="Precedent"><i class="fas fa-backward-step"></i></button>
-                        <button class="pb-btn pb-btn-sm" id="btnBack10" title="-10s"><i class="fas fa-rotate-left"></i><span class="seek-lbl">10</span></button>
-                        <button class="pb-btn pb-btn-play" id="btnPlay"><i class="fas fa-play" id="playIcon"></i></button>
-                        <button class="pb-btn pb-btn-sm" id="btnFwd10" title="+10s"><i class="fas fa-rotate-right"></i><span class="seek-lbl">10</span></button>
-                        <button class="pb-btn" id="btnNext" title="Suivant"><i class="fas fa-forward-step"></i></button>
+                <!-- Queue (drag & drop) -->
+                <div class="pp-queue" id="ppQueue">
+                    <div class="pp-queue-header">
+                        <span><i class="fas fa-list"></i> File d'attente</span>
+                        <span id="ppQueueCount">0</span>
                     </div>
-                    <div class="pb-progress">
-                        <span class="pb-time" id="pbTimeCur">0:00</span>
-                        <div class="pb-bar" id="pbBar">
-                            <div class="pb-bar-fill" id="pbBarFill"></div>
+                    <div id="ppQueueList"></div>
+                    <div class="pp-queue-empty" id="ppQueueEmpty">Ajoutez des chansons depuis la bibliothèque</div>
+                </div>
+
+                <!-- Controls -->
+                <div class="pp-controls">
+                    <div class="pp-song-info">
+                        <div class="pp-cover" id="ppCover">
+                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2);font-size:20px;"><i class="fas fa-music"></i></div>
                         </div>
-                        <span class="pb-time" id="pbTimeTotal">0:00</span>
+                        <div class="pp-meta">
+                            <div class="pp-title" id="ppTitle">Aucune chanson</div>
+                            <div class="pp-artist" id="ppArtist">-</div>
+                        </div>
                     </div>
-                </div>
-
-                <!-- Right: Volume / Track sliders -->
-                <div class="pb-right">
-                    <div class="pb-tracks">
-                        <div class="pb-track-control">
+                    <div class="pp-btns">
+                        <button class="pp-btn" id="btnPrev"><i class="fas fa-backward-step"></i></button>
+                        <button class="pp-btn" id="btnBack10"><i class="fas fa-rotate-left"></i></button>
+                        <button class="pp-btn pp-btn-play" id="btnPlay"><i class="fas fa-play" id="playIcon"></i></button>
+                        <button class="pp-btn" id="btnFwd10"><i class="fas fa-rotate-right"></i></button>
+                        <button class="pp-btn" id="btnNext"><i class="fas fa-forward-step"></i></button>
+                    </div>
+                    <div class="pp-progress">
+                        <span class="pp-time" id="ppTimeCur">0:00</span>
+                        <div class="pp-bar" id="ppBar">
+                            <div class="pp-bar-fill" id="ppBarFill"></div>
+                        </div>
+                        <span class="pp-time" id="ppTimeTotal">0:00</span>
+                    </div>
+                    <div class="pp-sliders">
+                        <div class="pp-slider-group">
                             <i class="fas fa-microphone" title="Voix"></i>
-                            <input type="range" id="sliderVocals" min="0" max="100" value="100" class="pb-slider">
+                            <input type="range" id="sliderVocals" min="0" max="100" value="100">
                         </div>
-                        <div class="pb-track-control">
+                        <div class="pp-slider-group">
                             <i class="fas fa-guitar" title="Instrumental"></i>
-                            <input type="range" id="sliderInstrumental" min="0" max="100" value="100" class="pb-slider">
+                            <input type="range" id="sliderInstrumental" min="0" max="100" value="100">
                         </div>
                     </div>
-                    <button class="pb-btn pb-btn-lyrics" id="btnLyrics" title="Paroles"><i class="fas fa-align-left"></i></button>
                 </div>
             </div>
-        </main>
+        </aside>
     </div>
 
     <!-- ─── Bottom Tab Bar (5 onglets — §5 Cahier des Charges) ──────── -->
@@ -340,7 +351,8 @@
     // ════════════════════════════════════════════════════════════════════════════
     // THEME — Electron client = dark only (§4.1). Light mode supprimé.
     // ════════════════════════════════════════════════════════════════════════════
-    document.documentElement.setAttribute('data-theme', 'dark');
+    // Mode clair par défaut
+    document.documentElement.removeAttribute('data-theme');
 
     // ════════════════════════════════════════════════════════════════════════════
     // STATE
@@ -1084,7 +1096,7 @@
         loadLyrics(song.id);
         updateAdaptiveBg(song.id);
         document.querySelectorAll('.song-row').forEach(r => r.classList.toggle('playing', r.dataset.id === songId));
-        document.getElementById('pbTimeTotal').textContent = fmtTime(audioEngine.getDuration());
+        document.getElementById('ppTimeTotal').textContent = fmtTime(audioEngine.getDuration());
 
         // Start playback
         audioEngine.play();
@@ -1094,19 +1106,19 @@
 
     async function updatePlayerBar() {
         if (!currentSong) return;
-        document.getElementById('pbTitle').textContent = fmt(currentSong.title);
-        document.getElementById('pbArtist').textContent = currentSong.artist || 'Artiste inconnu';
-        document.getElementById('playerFullTitle').textContent = fmt(currentSong.title);
-        document.getElementById('playerFullArtist').textContent = currentSong.artist || 'Artiste inconnu';
 
-        // Cover — only fetch if the song has one (avoids 404)
+        // Ouvrir le panneau player
+        document.querySelector('.app-shell').classList.add('has-player');
+
+        document.getElementById('ppTitle').textContent = fmt(currentSong.title);
+        document.getElementById('ppArtist').textContent = currentSong.artist || 'Artiste inconnu';
+
+        // Cover
         if (currentSong.has_cover) {
             const cover = await window.karaoking.getCoverUrl(currentSong.id);
-            document.getElementById('pbCover').innerHTML = `<img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=pb-cover-ph><i class=\\'fas fa-music\\'></i></div>'">`;
-            document.getElementById('playerFullCover').innerHTML = `<img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=cover-ph-lg><i class=\\'fas fa-music\\'></i></div>'">`;
+            document.getElementById('ppCover').innerHTML = `<img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2);font-size:20px\\'><i class=\\'fas fa-music\\'></i></div>'">`;
         } else {
-            document.getElementById('pbCover').innerHTML = `<div class="pb-cover-ph"><i class="fas fa-music"></i></div>`;
-            document.getElementById('playerFullCover').innerHTML = `<div class="cover-ph-lg"><i class="fas fa-music"></i></div>`;
+            document.getElementById('ppCover').innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2);font-size:20px;"><i class="fas fa-music"></i></div>`;
         }
 
         // Track sliders visibility
@@ -1171,22 +1183,22 @@
         audioEngine.setInstrumentalGain(e.target.value / 100);
     });
 
-    // Progress bar references
-    const pbBar = document.getElementById('pbBar');
-    const pbBarFill = document.getElementById('pbBarFill');
+    // Progress bar references (player panel)
+    const ppBar = document.getElementById('ppBar');
+    const ppBarFill = document.getElementById('ppBarFill');
 
     // Seek on progress bar click
-    pbBar.addEventListener('mousedown', (e) => {
+    ppBar.addEventListener('mousedown', (e) => {
         if (!audioEngine.bufV) return;
         audioEngine.isSeeking = true;
         const seek = (ev) => {
-            const rect = pbBar.getBoundingClientRect();
+            const rect = ppBar.getBoundingClientRect();
             let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-            pbBarFill.style.width = (pct * 100) + '%';
-            document.getElementById('pbTimeCur').textContent = fmtTime(pct * audioEngine.getDuration());
+            ppBarFill.style.width = (pct * 100) + '%';
+            document.getElementById('ppTimeCur').textContent = fmtTime(pct * audioEngine.getDuration());
         };
         const end = (ev) => {
-            const rect = pbBar.getBoundingClientRect();
+            const rect = ppBar.getBoundingClientRect();
             let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
             const t = pct * audioEngine.getDuration();
             audioEngine.seek(t);
@@ -1199,65 +1211,11 @@
         document.addEventListener('mouseup', end);
     });
 
-    // Lyrics button → ouvre le player plein écran
-    document.getElementById('btnLyrics').addEventListener('click', openFullPlayer);
-
-    // ─── Fullplayer bar controls (Karafun-style) ─────────────────────────
-    document.getElementById('fpBtnPlay').addEventListener('click', () => {
-        if (!currentSong) return;
-        if (audioEngine.isPlaying) { audioEngine.pause(); isPlaying = false; }
-        else { audioEngine.play(); isPlaying = true; }
-        updatePlayIcon();
-    });
-    document.getElementById('fpBtnPrev').addEventListener('click', () => {
-        if (!currentSong) return;
-        if (audioEngine.getCurrentTime() > 3) { audioEngine.seek(0); return; }
-        const idx = songs.findIndex(s => s.id === currentSong.id);
-        if (idx > 0) playSong(songs[idx - 1].id);
-    });
-    document.getElementById('fpBtnNext').addEventListener('click', () => nextSong());
-
-    // Fullplayer progress bar seek
-    document.getElementById('fpBar').addEventListener('mousedown', (e) => {
-        if (!audioEngine.bufV) return;
-        const bar = document.getElementById('fpBar');
-        const seek = (ev) => {
-            const rect = bar.getBoundingClientRect();
-            let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-            document.getElementById('fpBarFill').style.width = (pct * 100) + '%';
-        };
-        const end = (ev) => {
-            const rect = bar.getBoundingClientRect();
-            let pct = Math.max(0, Math.min(1, (ev.clientX - rect.left) / rect.width));
-            audioEngine.seek(pct * audioEngine.getDuration());
-            document.removeEventListener('mousemove', seek);
-            document.removeEventListener('mouseup', end);
-        };
-        seek(e);
-        document.addEventListener('mousemove', seek);
-        document.addEventListener('mouseup', end);
-    });
-
-    // Fullplayer sliders → engine gains
-    document.getElementById('fpSliderVocals').addEventListener('input', (e) => {
-        audioEngine.setVocalsGain(e.target.value / 100);
-    });
-    document.getElementById('fpSliderInstrumental').addEventListener('input', (e) => {
-        audioEngine.setInstrumentalGain(e.target.value / 100);
-    });
-
-    // Sync fullplayer progress with audio tick
+    // Sync player panel progress with audio tick
     audioEngine.startTick((cur, dur, playing) => {
-        // Miniplayer
-        pbBarFill.style.width = (cur / dur * 100) + '%';
-        document.getElementById('pbTimeCur').textContent = fmtTime(cur);
-        document.getElementById('pbTimeTotal').textContent = fmtTime(dur);
-        // Fullplayer
-        document.getElementById('fpBarFill').style.width = (cur / dur * 100) + '%';
-        document.getElementById('fpTimeCur').textContent = fmtTime(cur);
-        document.getElementById('fpTimeRemain').textContent = '-' + fmtTime(dur - cur);
-        document.getElementById('fpPlayIcon').className = playing ? 'fas fa-pause' : 'fas fa-play';
-        // Lyrics + play icon
+        ppBarFill.style.width = (cur / dur * 100) + '%';
+        document.getElementById('ppTimeCur').textContent = fmtTime(cur);
+        document.getElementById('ppTimeTotal').textContent = fmtTime(dur);
         updateLyricsHighlight(cur);
         isPlaying = playing;
         updatePlayIcon();
@@ -1528,7 +1486,7 @@
     }
 
     function renderLyrics() {
-        const container = document.getElementById('lyricsContainer');
+        const container = document.getElementById('ppLyrics');
         if (!lyrics.length) {
             container.innerHTML = '<div class="lyrics-spacer"></div><p class="lyrics-placeholder">Pas de paroles disponibles</p><div class="lyrics-spacer"></div>';
             return;
@@ -1620,7 +1578,7 @@
             });
             // Scroll active line to center
             const active = lines[currentLineIndex];
-            const container = document.getElementById('lyricsContainer');
+            const container = document.getElementById('ppLyrics');
             if (active && container) {
                 container.scrollTo({
                     top: active.offsetTop - container.clientHeight / 2 + active.offsetHeight / 2,

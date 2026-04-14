@@ -1,54 +1,53 @@
 /* design tokens — source de verite visuelle */
-/* Theme: Crimson Beat — bold, passionate, scene live */
+/* Theme: Crimson Beat Light — bold, passionate, scene live */
 
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
 
-:root,
-[data-theme="dark"] {
-    /* fonds */
-    --bg:               #0C0A0A;
-    --bg-elevated:      #1A1212;
-    --surface:          #221616;
-    --surface-hover:    #2E1E1E;
-    --glass:            rgba(255, 255, 255, 0.06);
-    --glass-strong:     rgba(255, 255, 255, 0.10);
-    --glass-border:     rgba(255, 255, 255, 0.12);
+:root {
+    /* fonds — mode clair */
+    --bg:               #F5F3F3;
+    --bg-elevated:      #FFFFFF;
+    --surface:          #FFFFFF;
+    --surface-hover:    #F0EAEA;
+    --glass:            rgba(0, 0, 0, 0.04);
+    --glass-strong:     rgba(0, 0, 0, 0.07);
+    --glass-border:     rgba(0, 0, 0, 0.10);
 
     /* accents */
     --accent:           #E53935;
-    --accent-soft:      rgba(229, 57, 53, 0.16);
-    --accent-glow:      rgba(229, 57, 53, 0.38);
-    --accent-2:         #26C6DA;
-    --accent-2-soft:    rgba(38, 198, 218, 0.16);
-    --accent-2-glow:    rgba(38, 198, 218, 0.40);
-    --gold:             #FFB300;
-    --success:          #00E676;
-    --error:            #FF6B6B;
+    --accent-soft:      rgba(229, 57, 53, 0.10);
+    --accent-glow:      rgba(229, 57, 53, 0.25);
+    --accent-2:         #0097A7;
+    --accent-2-soft:    rgba(0, 151, 167, 0.10);
+    --accent-2-glow:    rgba(0, 151, 167, 0.25);
+    --gold:             #FF8F00;
+    --success:          #2E7D32;
+    --error:            #D32F2F;
 
     /* texte */
-    --text:             #FFFFFF;
-    --text-muted:       #A89898;
-    --text-dim:         rgba(255, 255, 255, 0.35);
-    --text-faint:       rgba(255, 255, 255, 0.18);
+    --text:             #1A1A1A;
+    --text-muted:       #6E6060;
+    --text-dim:         rgba(0, 0, 0, 0.35);
+    --text-faint:       rgba(0, 0, 0, 0.15);
 
     /* bordures */
-    --border:           rgba(255, 255, 255, 0.08);
-    --border-strong:    rgba(255, 255, 255, 0.16);
+    --border:           rgba(0, 0, 0, 0.08);
+    --border-strong:    rgba(0, 0, 0, 0.16);
 
     /* placeholder gradients (cover fallback) */
-    --ph-gradient-1:    #2A1A1A;
-    --ph-gradient-2:    #3A1E1E;
-    --ph-color:         rgba(255, 255, 255, 0.12);
+    --ph-gradient-1:    #F0E8E8;
+    --ph-gradient-2:    #E8E0E0;
+    --ph-color:         rgba(0, 0, 0, 0.08);
 
     /* rayons & ombres */
     --radius-sm:        8px;
     --radius:           12px;
     --radius-lg:        18px;
     --radius-xl:        24px;
-    --shadow-glass:     0 8px 32px rgba(0, 0, 0, 0.45),
-                        inset 0 1px 0 rgba(255, 255, 255, 0.08);
-    --shadow-card:      0 6px 28px rgba(0, 0, 0, 0.40);
-    --shadow-glow:      0 0 24px var(--accent-glow);
+    --shadow-glass:     0 2px 12px rgba(0, 0, 0, 0.08),
+                        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    --shadow-card:      0 2px 16px rgba(0, 0, 0, 0.08);
+    --shadow-glow:      0 0 20px var(--accent-glow);
 
     /* typo */
     --font:             'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
@@ -72,28 +71,11 @@
     --z-miniplayer:     90;
     --z-modal:          200;
     --z-fullplayer:     300;
-}
 
-/* light theme — reserve a l'admin web Flask, electron reste dark only */
-[data-theme="light"] {
-    --bg:               #F5F5F7;
-    --bg-elevated:      #FFFFFF;
-    --surface:          #FFFFFF;
-    --surface-hover:    #F0F0F5;
-    --glass:            rgba(0, 0, 0, 0.04);
-    --glass-strong:     rgba(0, 0, 0, 0.07);
-    --glass-border:     rgba(0, 0, 0, 0.10);
-    --accent:           #E53935;
-    --accent-soft:      rgba(229, 57, 53, 0.10);
-    --accent-glow:      rgba(229, 57, 53, 0.25);
-    --text:             #1D1D1F;
-    --text-muted:       #6E6E80;
-    --text-dim:         rgba(0, 0, 0, 0.30);
-    --text-faint:       rgba(0, 0, 0, 0.15);
-    --border:           rgba(0, 0, 0, 0.08);
-    --border-strong:    rgba(0, 0, 0, 0.16);
-    --ph-gradient-1:    #F5E6E6;
-    --ph-gradient-2:    #F2E6E6;
-    --ph-color:         rgba(0, 0, 0, 0.12);
-    --shadow-card:      0 6px 28px rgba(0, 0, 0, 0.10);
+    /* player panel */
+    --player-bg:        #1A1212;
+    --player-text:      #FFFFFF;
+    --player-muted:     rgba(255, 255, 255, 0.60);
+    --player-glass:     rgba(255, 255, 255, 0.08);
+    --player-border:    rgba(255, 255, 255, 0.12);
 }
