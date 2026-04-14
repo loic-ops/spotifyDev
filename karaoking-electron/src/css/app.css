@@ -5,7 +5,7 @@
 
 /* compat legacy: anciens noms de variables sidebar */
 :root, [data-theme="dark"] {
-    --sidebar-bg: rgba(20, 20, 43, 0.78);
+    --sidebar-bg: rgba(26, 18, 18, 0.78);
 }
 [data-theme="light"] {
     --sidebar-bg: rgba(245, 245, 247, 0.88);
@@ -131,9 +131,9 @@ body {
 /* hero banner */
 .hero-banner {
     background:
-        radial-gradient(120% 90% at 20% 10%, rgba(124, 77, 255, 0.55) 0%, transparent 60%),
-        radial-gradient(100% 100% at 90% 100%, rgba(0, 229, 255, 0.30) 0%, transparent 60%),
-        linear-gradient(135deg, #14142B 0%, #1A1A2E 60%, #221544 100%);
+        radial-gradient(120% 90% at 20% 10%, rgba(229, 57, 53, 0.55) 0%, transparent 60%),
+        radial-gradient(100% 100% at 90% 100%, rgba(38, 198, 218, 0.30) 0%, transparent 60%),
+        linear-gradient(135deg, #1A1212 0%, #221616 60%, #2A1414 100%);
     border-radius: 16px;
     padding: 40px 36px;
     display: flex; align-items: center; justify-content: space-between;
