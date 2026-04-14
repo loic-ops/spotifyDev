@@ -18,7 +18,7 @@ body {
 /* app shell — split layout */
 .app-shell {
     display: flex;
-    height: 100vh;
+    height: calc(100vh - 92px); /* espace pour la tabbar */
 }
 
 /* player panel — panneau droit sombre */
@@ -971,6 +971,12 @@ body {
     position: fixed;
     left: 16px; right: 16px;
     bottom: 14px;
+    transition: right 400ms var(--ease);
+}
+.app-shell.has-player ~ .tabbar {
+    right: 436px;
+}
+.tabbar {
     height: 64px;
     border-radius: var(--radius-xl);
     display: flex; align-items: stretch;
