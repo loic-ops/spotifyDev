@@ -862,7 +862,7 @@ body {
     background: var(--accent); color: #fff;
     box-shadow: 0 4px 18px var(--accent-glow);
 }
-.player-bar.miniplayer .pb-btn-play:hover { background: #8a5dff; }
+.player-bar.miniplayer .pb-btn-play:hover { background: #EF4444; }
 .player-bar.miniplayer .pb-btn-sm { font-size: 11px; position: relative; }
 .player-bar.miniplayer .pb-btn-sm .seek-lbl {
     position: absolute;
@@ -1109,7 +1109,7 @@ body {
 .kara-pop-divider { height: 1px; background: rgba(255,255,255,.1); margin: 12px 0; }
 .kara-pop-stepper { display: flex; align-items: center; gap: 8px; }
 .kara-slider { width: 120px; height: 4px; cursor: pointer; }
-.kara-slider-vocals { accent-color: #9c27b0; }
+.kara-slider-vocals { accent-color: #E53935; }
 .kara-slider-instru { accent-color: #e91429; }
 
 /* queue bar */
