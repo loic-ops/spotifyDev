@@ -34,22 +34,34 @@ def list_songs():
         finally:
             s.close()
 
+        # Pré-charger les noms d'artistes pour les songs avec artist_id
+        artist_ids = {s.artist_id for s in db_songs if s.artist_id}
+        artist_names = {}
+        if artist_ids:
+            from database.models.artist import Artist
+            s2 = get_session()
+            try:
+                for a in s2.query(Artist).filter(Artist.id.in_(artist_ids)).all():
+                    artist_names[a.id] = a.name
+            finally:
+                s2.close()
+
         result = []
         for song in db_songs:
             song_dir = os.path.join(current_app.config['PROCESSED_FOLDER'], song.id)
 
             title = song.title
-            artist = 'Unknown Artist'
-            duration = 0
+            artist = artist_names.get(song.artist_id, 'Unknown Artist')
+            duration = song.duration_sec or 0
             lyrics_offset = 0
             meta_path = os.path.join(song_dir, 'meta.json')
             if os.path.exists(meta_path):
                 try:
                     with open(meta_path, 'r') as f:
                         meta = json.loads(decrypt_data(f.read()))
-                        artist = meta.get('artist', 'Unknown Artist')
+                        artist = meta.get('artist', artist)
                         title = meta.get('title', title)
-                        duration = meta.get('duration', 0)
+                        duration = meta.get('duration', duration)
                         lyrics_offset = meta.get('lyrics_offset', 0)
                 except Exception:
                     pass
