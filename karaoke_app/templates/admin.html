@@ -95,6 +95,12 @@
                         <button class="filter-chip" data-filter="ready">
                             <i class="fas fa-check-circle"></i> Pret
                         </button>
+                        <button class="filter-chip" data-filter="has-lyrics">
+                            <i class="fas fa-align-left"></i> Transcrit
+                        </button>
+                        <button class="filter-chip" data-filter="has-instrumental">
+                            <i class="fas fa-cut"></i> Separe
+                        </button>
                     </div>
                     <a href="/admin/upload" class="btn btn-accent">
                         <i class="fas fa-plus"></i> Importer MP3
@@ -922,6 +928,10 @@
                 songs = songs.filter(s => !s.has_instrumental || !s.has_lyrics);
             } else if (filter === 'ready') {
                 songs = songs.filter(s => s.has_instrumental && s.has_lyrics);
+            } else if (filter === 'has-lyrics') {
+                songs = songs.filter(s => s.has_lyrics);
+            } else if (filter === 'has-instrumental') {
+                songs = songs.filter(s => s.has_instrumental);
             }
 
             window._filteredSongs = songs;
