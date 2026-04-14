@@ -436,51 +436,14 @@
         });
     });
 
-    // ─── Fullscreen player overlay (§6) ──────────────────────────────────
-    const fullPlayerEl = document.getElementById('view-player');
-    const fullPlayerCloseBtn = document.getElementById('fullplayerClose');
-
+    // ─── Player panel (split view — remplace le fullscreen overlay) ─────
     function openFullPlayer() {
-        if (!currentSong) return;
-        fullPlayerEl.hidden = false;
-        requestAnimationFrame(() => fullPlayerEl.classList.add('open'));
-        document.body.classList.add('fullplayer-open');
+        // En mode split, ouvrir le player panel
+        document.querySelector('.app-shell').classList.add('has-player');
     }
-
     function closeFullPlayer() {
-        fullPlayerEl.classList.remove('open');
-        document.body.classList.remove('fullplayer-open');
-        setTimeout(() => { fullPlayerEl.hidden = true; }, 320);
+        document.querySelector('.app-shell').classList.remove('has-player');
     }
-
-    fullPlayerCloseBtn.addEventListener('click', closeFullPlayer);
-    document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape' && fullPlayerEl.classList.contains('open')) closeFullPlayer();
-    });
-
-    // Click sur le mini-player (zone info) ouvre le full player overlay
-    document.getElementById('pbInfo').addEventListener('click', () => {
-        if (currentSong) openFullPlayer();
-    });
-
-    // Trackpad swipe up/down → open/close fullplayer (macOS gesture)
-    let _swipeAccum = 0;
-    let _swipeTimer = null;
-    document.addEventListener('wheel', (e) => {
-        // Only handle vertical swipe on the fullplayer or miniplayer
-        if (e.deltaX !== 0) return; // ignore horizontal
-        _swipeAccum += e.deltaY;
-        clearTimeout(_swipeTimer);
-        _swipeTimer = setTimeout(() => { _swipeAccum = 0; }, 300);
-
-        if (_swipeAccum < -120 && fullPlayerEl.classList.contains('open')) {
-            closeFullPlayer();
-            _swipeAccum = 0;
-        } else if (_swipeAccum > 120 && !fullPlayerEl.classList.contains('open') && currentSong) {
-            openFullPlayer();
-            _swipeAccum = 0;
-        }
-    }, { passive: true });
 
     // ─── Library sub-nav ─────────────────────────────────────────────────
     let librarySection = 'recent';
@@ -528,33 +491,15 @@
         c.addEventListener('click', () => setDiscoverSection(c.dataset.discover));
     });
 
-    // Genre definitions (§5.2 — couleurs + emojis). Seront récupérés via API en B.M7.
-    // Default genres (fallback if API returns empty)
-    const DEFAULT_GENRES = [
-        { name: 'Afrobeat', color: '#FF6B35', emoji: '🥁' },
-        { name: 'Coupé-Décalé', color: '#FFD700', emoji: '💃' },
-        { name: 'Ndombolo', color: '#00E5FF', emoji: '🎶' },
-        { name: 'Mbalax', color: '#E53935', emoji: '🪘' },
-        { name: 'Zouk', color: '#FF4081', emoji: '❤️' },
-        { name: 'Gospel', color: '#FFB300', emoji: '🙏' },
-        { name: 'Rap/Hip-Hop', color: '#26C6DA', emoji: '🎤' },
-        { name: 'Rumba', color: '#00C853', emoji: '🎹' },
-        { name: 'Reggae', color: '#66BB6A', emoji: '🌿' },
-        { name: 'RnB/Soul', color: '#EF5350', emoji: '❤️' },
-        { name: 'Pop', color: '#FF7043', emoji: '⭐' },
-        { name: 'Traditionnel', color: '#8D6E63', emoji: '🏠' },
-    ];
-    let GENRES = DEFAULT_GENRES;
+    // Genres — chargés uniquement depuis l'API
+    let GENRES = [];
 
-    // Fetch genres from API (B.M7) — merge with defaults
     async function loadGenres() {
         try {
             const data = await window.karaoking.fetchApi('/api/genres');
             if (Array.isArray(data) && data.length) {
-                // Use API genres (they have real IDs for DB filtering)
                 GENRES = data;
             }
-            // If API returns nothing, keep DEFAULT_GENRES (no id → visual only)
         } catch {}
     }
 
@@ -1279,17 +1224,18 @@
     // ════════════════════════════════════════════════════════════════════════════
     let queue = [];
 
-    // Personnaliser popover toggle (animated enter/exit)
+    // Personnaliser popover (désactivé en mode split — les sliders sont dans le player panel)
     const _popover = document.getElementById('customizePopover');
-    _popover.hidden = false; // keep in DOM for animation, control via .visible
-    document.getElementById('customizeBtn').addEventListener('click', () => {
-        _popover.classList.toggle('visible');
-    });
-    document.addEventListener('click', (e) => {
-        if (_popover.classList.contains('visible') && !e.target.closest('.kara-popover') && !e.target.closest('#customizeBtn')) {
-            _popover.classList.remove('visible');
-        }
-    });
+    const _customizeBtn = document.getElementById('customizeBtn');
+    if (_popover && _customizeBtn) {
+        _popover.hidden = false;
+        _customizeBtn.addEventListener('click', () => _popover.classList.toggle('visible'));
+        document.addEventListener('click', (e) => {
+            if (_popover.classList.contains('visible') && !e.target.closest('.kara-popover') && !e.target.closest('#customizeBtn')) {
+                _popover.classList.remove('visible');
+            }
+        });
+    }
 
     function addToQueue(songId) {
         const song = songs.find(s => s.id === songId);
@@ -1299,9 +1245,9 @@
     }
 
     function renderQueue() {
-        const list = document.getElementById('queueList');
-        const empty = document.getElementById('queueEmpty');
-        const countEl = document.getElementById('queueCount');
+        const list = document.getElementById('ppQueueList') || document.getElementById('queueList');
+        const empty = document.getElementById('ppQueueEmpty') || document.getElementById('queueEmpty');
+        const countEl = document.getElementById('ppQueueCount') || document.getElementById('queueCount');
         if (countEl) countEl.textContent = queue.length + ' chanson' + (queue.length > 1 ? 's' : '');
         if (!queue.length) { list.innerHTML = ''; empty.style.display = ''; return; }
         empty.style.display = 'none';
@@ -1348,14 +1294,8 @@
     // ANNOUNCER (§6 — overlay avant lecture)
     // ════════════════════════════════════════════════════════════════════════════
     function showAnnouncer(songData, onDone) {
-        const overlay = document.getElementById('announcerOverlay');
-        document.getElementById('announcerTitle').textContent = fmt(songData.title);
-        document.getElementById('announcerArtist').textContent = songData.artist || '';
-        overlay.hidden = false;
-        setTimeout(() => {
-            overlay.hidden = true;
-            if (onDone) onDone();
-        }, 2500);
+        // En mode split, pas d'announcer overlay — lancer directement
+        if (onDone) onDone();
     }
 
     // ════════════════════════════════════════════════════════════════════════════
