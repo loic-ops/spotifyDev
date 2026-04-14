@@ -76,7 +76,13 @@
 
             <!-- bibliotheque -->
             <header class="admin-header">
-                <h2>Bibliotheque</h2>
+                <div style="display:flex;align-items:center;gap:16px;">
+                    <h2>Bibliotheque</h2>
+                    <div class="search-box" style="position:relative;">
+                        <i class="fas fa-search" style="position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:13px;"></i>
+                        <input type="text" id="songSearchInput" class="form-input" placeholder="Rechercher une chanson..." style="padding-left:32px;width:260px;height:36px;font-size:13px;">
+                    </div>
+                </div>
                 <div class="admin-header-actions">
                     <div class="filter-chips" id="filterChips">
                         <button class="filter-chip active" data-filter="all">Toutes</button>
@@ -96,23 +102,32 @@
                 </div>
             </header>
 
+            <!-- barre actions batch (cachée par défaut) -->
+            <div id="batchBar" style="display:none;padding:8px 16px;background:var(--accent);color:#fff;border-radius:var(--radius);margin-bottom:12px;align-items:center;gap:12px;">
+                <span><strong id="batchCount">0</strong> chanson(s) sélectionnée(s)</span>
+                <button class="btn btn-sm" style="background:#fff;color:var(--accent);border:none;" onclick="batchTranscribe()"><i class="fas fa-robot"></i> Transcrire</button>
+                <button class="btn btn-sm" style="background:#fff;color:var(--accent);border:none;" onclick="batchSeparate()"><i class="fas fa-cut"></i> Séparer</button>
+                <button class="btn btn-sm" style="background:#fff;color:var(--accent);border:none;" onclick="batchTranscribeAndSeparate()"><i class="fas fa-magic"></i> Transcrire + Séparer</button>
+                <button class="btn btn-sm" style="background:rgba(255,255,255,0.3);color:#fff;border:none;margin-left:auto;" onclick="clearSelection()"><i class="fas fa-times"></i> Annuler</button>
+            </div>
+
             <div class="songs-table-wrapper">
                 <table class="songs-table" id="songsTable">
                     <thead>
                         <tr>
+                            <th style="width:36px;"><input type="checkbox" id="selectAllSongs" title="Tout sélectionner"></th>
                             <th style="width:36px;">#</th>
                             <th>Titre</th>
                             <th>Artiste</th>
                             <th style="width:80px;">Statut</th>
                             <th style="width:70px;">Paroles</th>
                             <th style="width:70px;">Instru.</th>
-                            <!-- TODO: pagination si > 100 chansons -->
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody id="songsBody">
                         <tr>
-                            <td colspan="7" class="empty-state">
+                            <td colspan="8" class="empty-state">
                                 <i class="fas fa-music"></i>
                                 <p>Aucune chanson. Importez ou recherchez sur YouTube !</p>
                             </td>
@@ -120,6 +135,8 @@
                     </tbody>
                 </table>
             </div>
+            <!-- pagination -->
+            <div id="paginationControls" style="display:flex;justify-content:center;align-items:center;gap:8px;padding:16px 0;"></div>
         </main>
     </div>
 
@@ -303,10 +320,11 @@
 
                 if (!songs.length) {
                     tbody.innerHTML = `
-                        <tr><td colspan="7" class="empty-state">
+                        <tr><td colspan="8" class="empty-state">
                             <i class="fas fa-music"></i>
                             <p>Aucune chanson. Importez ou recherchez sur YouTube !</p>
                         </td></tr>`;
+                    document.getElementById('paginationControls').innerHTML = '';
                     return;
                 }
 
@@ -314,17 +332,37 @@
                 if (document.getElementById('needsCount')) document.getElementById('needsCount').textContent = needsProcessing.length;
 
                 window._adminSongs = songs;
+                window._filteredSongs = songs;
+                window._currentPage = window._currentPage || 1;
+                window._songsPerPage = 50;
 
-                function statusBadge(song) {
-                    if (song.has_instrumental && song.has_lyrics) return '<span class="badge badge-ok"><i class="fas fa-check-circle"></i> Pret</span>';
-                    if (song.status === 'separated') return '<span class="badge badge-info"><i class="fas fa-cut"></i> Separe</span>';
-                    if (song.status === 'youtube') return '<span class="badge badge-yt"><i class="fab fa-youtube"></i> YT</span>';
-                    return '<span class="badge badge-warning"><i class="fas fa-clock"></i> Brouillon</span>';
-                }
+                renderSongsPage();
+            } catch (err) {}
+        }
 
-                tbody.innerHTML = songs.map((song, i) => `
-                    <tr data-status="${escapeAttr(song.status || 'uploaded')}" data-has-instrumental="${song.has_instrumental}" data-has-lyrics="${song.has_lyrics}">
-                        <td>${i + 1}</td>
+        function statusBadge(song) {
+            if (song.has_instrumental && song.has_lyrics) return '<span class="badge badge-ok"><i class="fas fa-check-circle"></i> Pret</span>';
+            if (song.status === 'separated') return '<span class="badge badge-info"><i class="fas fa-cut"></i> Separe</span>';
+            if (song.status === 'youtube') return '<span class="badge badge-yt"><i class="fab fa-youtube"></i> YT</span>';
+            return '<span class="badge badge-warning"><i class="fas fa-clock"></i> Brouillon</span>';
+        }
+
+        function renderSongsPage() {
+            var songs = window._filteredSongs || [];
+            var page = window._currentPage || 1;
+            var perPage = window._songsPerPage;
+            var totalPages = Math.ceil(songs.length / perPage) || 1;
+            if (page > totalPages) page = totalPages;
+            window._currentPage = page;
+
+            var start = (page - 1) * perPage;
+            var pageSongs = songs.slice(start, start + perPage);
+            var tbody = document.getElementById('songsBody');
+
+            tbody.innerHTML = pageSongs.map((song, i) => `
+                    <tr data-song-id="${escapeAttr(song.id)}" data-status="${escapeAttr(song.status || 'uploaded')}" data-has-instrumental="${song.has_instrumental}" data-has-lyrics="${song.has_lyrics}">
+                        <td><input type="checkbox" class="song-checkbox" data-id="${escapeAttr(song.id)}"></td>
+                        <td>${start + i + 1}</td>
                         <td class="song-title-cell">
                             <div class="song-title" title="${escapeAttr(song.title)}">${escapeHtml(formatTitle(song.title))}</div>
                         </td>
@@ -373,9 +411,14 @@
                         else if (action === 'delete') deleteSong(id);
                     });
                 });
-            } catch (err) {
-                // console.log('loadSongs fail:', err);
-            }
+
+                // bind checkboxes
+                tbody.querySelectorAll('.song-checkbox').forEach(cb => {
+                    cb.addEventListener('change', updateBatchBar);
+                });
+
+                // pagination
+                renderPagination(songs.length, page, totalPages);
         }
 
         // edit modal
@@ -830,29 +873,161 @@
             }
         }
 
-        // filtres bibliotheque
+        // --- Pagination ---
+        function renderPagination(total, page, totalPages) {
+            var el = document.getElementById('paginationControls');
+            if (totalPages <= 1) { el.innerHTML = '<span style="color:var(--text-muted);font-size:13px;">' + total + ' chanson(s)</span>'; return; }
+            var html = '<span style="color:var(--text-muted);font-size:13px;">' + total + ' chanson(s)</span><span style="margin:0 8px;">|</span>';
+            html += '<button class="btn-sm btn-outline" ' + (page <= 1 ? 'disabled' : '') + ' onclick="goToPage(' + (page-1) + ')"><i class="fas fa-chevron-left"></i></button>';
+            var startP = Math.max(1, page - 2);
+            var endP = Math.min(totalPages, page + 2);
+            for (var p = startP; p <= endP; p++) {
+                html += '<button class="btn-sm ' + (p === page ? 'btn-accent' : 'btn-outline') + '" onclick="goToPage(' + p + ')">' + p + '</button>';
+            }
+            html += '<button class="btn-sm btn-outline" ' + (page >= totalPages ? 'disabled' : '') + ' onclick="goToPage(' + (page+1) + ')"><i class="fas fa-chevron-right"></i></button>';
+            el.innerHTML = html;
+        }
+
+        function goToPage(p) {
+            window._currentPage = p;
+            renderSongsPage();
+            document.querySelector('.songs-table-wrapper').scrollTop = 0;
+        }
+
+        // --- Recherche ---
+        document.getElementById('songSearchInput').addEventListener('input', function() {
+            var q = this.value.toLowerCase().trim();
+            var allSongs = window._adminSongs || [];
+            if (!q) {
+                window._filteredSongs = allSongs;
+            } else {
+                window._filteredSongs = allSongs.filter(s =>
+                    (s.title || '').toLowerCase().includes(q) ||
+                    (s.artist || '').toLowerCase().includes(q)
+                );
+            }
+            window._currentPage = 1;
+            applyActiveFilter();
+        });
+
+        // --- Filtres bibliothèque ---
+        function applyActiveFilter() {
+            var activeChip = document.querySelector('.filter-chip.active');
+            var filter = activeChip ? activeChip.dataset.filter : 'all';
+            var songs = window._filteredSongs || window._adminSongs || [];
+
+            if (filter === 'youtube') {
+                songs = songs.filter(s => s.status === 'youtube');
+            } else if (filter === 'needs-processing') {
+                songs = songs.filter(s => !s.has_instrumental || !s.has_lyrics);
+            } else if (filter === 'ready') {
+                songs = songs.filter(s => s.has_instrumental && s.has_lyrics);
+            }
+
+            window._filteredSongs = songs;
+            renderSongsPage();
+        }
+
         document.addEventListener('click', (e) => {
             var chip = e.target.closest('.filter-chip');
             if (!chip) return;
-
             document.querySelectorAll('.filter-chip').forEach(c => c.classList.remove('active'));
             chip.classList.add('active');
 
-            var filter = chip.dataset.filter;
-            var rows = document.querySelectorAll('#songsBody tr[data-status]');
-
-            rows.forEach(row => {
-                if (filter === 'all') {
-                    row.style.display = '';
-                } else if (filter === 'youtube') {
-                    row.style.display = row.dataset.status === 'youtube' ? '' : 'none';
-                } else if (filter === 'needs-processing') {
-                    row.style.display = (row.dataset.hasInstrumental === 'false' || row.dataset.hasLyrics === 'false') ? '' : 'none';
-                } else if (filter === 'ready') {
-                    row.style.display = (row.dataset.hasInstrumental === 'true' && row.dataset.hasLyrics === 'true') ? '' : 'none';
-                }
-            });
+            // Réappliquer le filtre sur les songs (tenant compte de la recherche)
+            var q = (document.getElementById('songSearchInput').value || '').toLowerCase().trim();
+            var allSongs = window._adminSongs || [];
+            window._filteredSongs = q ? allSongs.filter(s =>
+                (s.title || '').toLowerCase().includes(q) ||
+                (s.artist || '').toLowerCase().includes(q)
+            ) : allSongs;
+            window._currentPage = 1;
+            applyActiveFilter();
         });
+
+        // --- Sélection multiple / Batch ---
+        var _selectedSongIds = new Set();
+
+        document.getElementById('selectAllSongs').addEventListener('change', function() {
+            var checked = this.checked;
+            document.querySelectorAll('.song-checkbox').forEach(cb => {
+                cb.checked = checked;
+                if (checked) _selectedSongIds.add(cb.dataset.id);
+                else _selectedSongIds.delete(cb.dataset.id);
+            });
+            updateBatchBar();
+        });
+
+        function updateBatchBar() {
+            document.querySelectorAll('.song-checkbox').forEach(cb => {
+                if (cb.checked) _selectedSongIds.add(cb.dataset.id);
+                else _selectedSongIds.delete(cb.dataset.id);
+            });
+            var bar = document.getElementById('batchBar');
+            var count = _selectedSongIds.size;
+            document.getElementById('batchCount').textContent = count;
+            bar.style.display = count > 0 ? 'flex' : 'none';
+        }
+
+        function clearSelection() {
+            _selectedSongIds.clear();
+            document.querySelectorAll('.song-checkbox').forEach(cb => cb.checked = false);
+            document.getElementById('selectAllSongs').checked = false;
+            updateBatchBar();
+        }
+
+        async function batchTranscribe() {
+            if (!_selectedSongIds.size) return;
+            if (!confirm('Transcrire ' + _selectedSongIds.size + ' chanson(s) avec Whisper ?')) return;
+            for (var id of _selectedSongIds) {
+                try {
+                    await fetch('/api/transcribe/' + id, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                        body: JSON.stringify({ model: 'base' })
+                    });
+                } catch {}
+            }
+            showToast(_selectedSongIds.size + ' transcription(s) lancée(s)', 'success', 'fa-robot');
+            clearSelection();
+        }
+
+        async function batchSeparate() {
+            if (!_selectedSongIds.size) return;
+            if (!confirm('Séparer ' + _selectedSongIds.size + ' chanson(s) avec Demucs ?')) return;
+            for (var id of _selectedSongIds) {
+                try {
+                    await fetch('/api/separate/' + id, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                        body: JSON.stringify({})
+                    });
+                } catch {}
+            }
+            showToast(_selectedSongIds.size + ' séparation(s) lancée(s)', 'success', 'fa-cut');
+            clearSelection();
+        }
+
+        async function batchTranscribeAndSeparate() {
+            if (!_selectedSongIds.size) return;
+            if (!confirm('Transcrire + Séparer ' + _selectedSongIds.size + ' chanson(s) ?')) return;
+            for (var id of _selectedSongIds) {
+                try {
+                    await fetch('/api/separate/' + id, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                        body: JSON.stringify({})
+                    });
+                    await fetch('/api/transcribe/' + id, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken },
+                        body: JSON.stringify({ model: 'base' })
+                    });
+                } catch {}
+            }
+            showToast(_selectedSongIds.size + ' traitement(s) lancé(s) (séparation + transcription)', 'success', 'fa-magic');
+            clearSelection();
+        }
 
         // YT quick search
         document.getElementById('ytQuickSearchBtn').addEventListener('click', ytQuickSearch);
