@@ -23,27 +23,30 @@ body {
 
 /* player panel — panneau droit sombre */
 .player-panel {
-    width: 0;
     flex-shrink: 0;
+    width: 0;
+    min-width: 0;
     background: var(--player-bg);
     color: var(--player-text);
     display: flex;
     flex-direction: column;
-    overflow: hidden;
-    transition: width 400ms var(--ease);
     position: relative;
     border-left: 1px solid rgba(0,0,0,0.15);
+    transition: width 400ms var(--ease), min-width 400ms var(--ease);
+    clip-path: inset(0 0 0 0);
 }
 .app-shell.has-player .player-panel {
     width: 420px;
+    min-width: 420px;
 }
 
-/* player panel inner */
+/* player panel inner — toujours 420px, ne rétrécit pas */
 .player-panel-inner {
     display: flex;
     flex-direction: column;
     height: 100%;
     width: 420px;
+    min-width: 420px;
 }
 
 /* player lyrics zone */
