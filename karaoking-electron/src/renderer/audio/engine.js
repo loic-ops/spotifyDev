@@ -16,6 +16,7 @@ export class AudioEngine {
     this.hasI = false;
     this.isPlaying = false;
     this.isSeeking = false;
+    this.playbackRate = 1.0;
     this.callbacks = { timeupdate: [], ended: [], error: [] };
   }
 
@@ -37,7 +38,7 @@ export class AudioEngine {
   getCurrentTime() {
     if (!this.bufV) return 0;
     if (this.isPlaying) {
-      const elapsed = this.audioCtx.currentTime - this.startCtxTime;
+      const elapsed = (this.audioCtx.currentTime - this.startCtxTime) * this.playbackRate;
       return Math.min(this.getDuration(), this.startOffset + elapsed);
     }
     return this.startOffset;
@@ -78,6 +79,9 @@ export class AudioEngine {
       this.srcI.buffer = this.bufI;
       this.srcI.connect(this.gainI);
     }
+
+    this.srcV.playbackRate.value = this.playbackRate;
+    if (this.srcI) this.srcI.playbackRate.value = this.playbackRate;
 
     this.srcV.start(when, offset);
     if (this.srcI) this.srcI.start(when, offset);
@@ -152,6 +156,20 @@ export class AudioEngine {
 
   setInstrumentalGain(val) {
     if (this.gainI) this.gainI.gain.value = val;
+  }
+
+  setPlaybackRate(rate) {
+    // Checkpointer la position avant de changer le rate
+    // sinon getCurrentTime() recalcule tout l'elapsed avec le nouveau rate
+    if (this.isPlaying && this.audioCtx) {
+      const now = this.audioCtx.currentTime;
+      const elapsed = (now - this.startCtxTime) * this.playbackRate;
+      this.startOffset = Math.min(this.getDuration(), this.startOffset + elapsed);
+      this.startCtxTime = now;
+    }
+    this.playbackRate = rate;
+    if (this.srcV) this.srcV.playbackRate.value = rate;
+    if (this.srcI) this.srcI.playbackRate.value = rate;
   }
 
   on(event, callback) {

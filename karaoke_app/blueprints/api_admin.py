@@ -144,8 +144,8 @@ def update_song(song_id):
     with open(meta_path, 'w') as f:
         f.write(encrypt_data(json.dumps(meta)))
 
-    # fk columns genre/artist
-    if 'genre_id' in data or 'artist_id' in data:
+    # fk columns genre/artist + banner
+    if 'genre_id' in data or 'artist_id' in data or 'banner_text' in data:
         from database.db_utils import get_session
         from database.models.song import Song
         sess = get_session()
@@ -156,6 +156,8 @@ def update_song(song_id):
                     db_song.genre_id = data['genre_id'] or None
                 if 'artist_id' in data:
                     db_song.artist_id = data['artist_id'] or None
+                if 'banner_text' in data:
+                    db_song.banner_text = sanitize_text(data['banner_text']) if data['banner_text'] else None
                 sess.commit()
         finally:
             sess.close()

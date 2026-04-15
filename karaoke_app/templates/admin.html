@@ -223,6 +223,10 @@
                     </div>
                 </div>
                 <div class="form-group">
+                    <label>Bandeau / Pub (texte affiché sur le player)</label>
+                    <input type="text" id="editBannerText" class="form-input" placeholder="Ex: Écoutez le nouvel album disponible maintenant !">
+                </div>
+                <div class="form-group">
                     <label>Couverture (JPG, PNG, WebP)</label>
                     <div class="file-input-row">
                         <input type="file" id="editCoverFile" accept=".jpg,.jpeg,.png,.webp">
@@ -449,6 +453,7 @@
             document.getElementById('editArtist').value = artist;
             document.getElementById('editGenreId').value = song.genre_id || '';
             document.getElementById('editLyricsOffset').value = song.lyrics_offset || 0;
+            document.getElementById('editBannerText').value = song.banner_text || '';
             document.getElementById('editLyricsFile').value = '';
             document.getElementById('editCoverFile').value = '';
             document.getElementById('editModal').style.display = 'flex';
@@ -464,6 +469,7 @@
             var artist = document.getElementById('editArtist').value;
             var genreId = document.getElementById('editGenreId').value;
             var lyricsOffset = parseFloat(document.getElementById('editLyricsOffset').value) || 0;
+            var bannerText = document.getElementById('editBannerText').value.trim();
             var lyricsFile = document.getElementById('editLyricsFile').files[0];
             var coverFile = document.getElementById('editCoverFile').files[0];
 
@@ -476,7 +482,8 @@
                     body: JSON.stringify({
                         title, artist,
                         genre_id: genreId ? parseInt(genreId) : null,
-                        lyrics_offset: lyricsOffset
+                        lyrics_offset: lyricsOffset,
+                        banner_text: bannerText || null
                     })
                 });
 

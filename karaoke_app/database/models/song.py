@@ -32,6 +32,7 @@ class Song(Base):
     likes_count = Column(Integer, default=0)
     duration_sec = Column(Float, default=0)
     id3_raw = Column(Text)             # json chiffre, dump mutagen
+    banner_text = Column(String(500))   # texte pub/annonce configurable par admin
     created_by = Column(Integer, ForeignKey('admins.id', ondelete='SET NULL'))
 
     __table_args__ = (

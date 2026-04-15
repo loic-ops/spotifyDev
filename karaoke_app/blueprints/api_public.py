@@ -87,6 +87,7 @@ def list_songs():
                 'genre_id': song.genre_id, 'artist_id': song.artist_id,
                 'has_cover': has_cover, 'has_lyrics': has_lyrics,
                 'has_instrumental': has_instr, 'has_vocals': has_vocals,
+                'banner_text': song.banner_text or None,
             })
 
         return jsonify(result)

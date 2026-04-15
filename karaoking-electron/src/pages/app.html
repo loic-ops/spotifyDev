@@ -157,175 +157,107 @@
 
             </div>
 
-            <!-- ═══ KARAOKE PLAYER (Karafun-style) ═══════════════════════
-                 Fullscreen: adaptive bg + grosses paroles centrées +
-                 barre player bottom + popover Personnaliser + queue
-            -->
-            <div id="view-player" class="fullplayer" hidden>
-                <div class="adaptive-bg" id="adaptiveBg"></div>
-
-                <!-- Announcer overlay (queue transitions only) -->
-                <div class="announcer-overlay" id="announcerOverlay" hidden>
-                    <div class="announcer-content">
-                        <div class="announcer-next">Prochain morceau</div>
-                        <div class="announcer-title" id="announcerTitle"></div>
-                        <div class="announcer-artist" id="announcerArtist"></div>
-                    </div>
-                </div>
-
-                <!-- Close button (top-left) -->
-                <button class="fullplayer-close" id="fullplayerClose" title="Reduire">
-                    <i class="fas fa-chevron-down"></i>
-                </button>
-
-                <!-- ─── LYRICS ZONE (centre, plein ecran) ─── -->
-                <div class="kara-lyrics-zone">
-                    <div class="lyrics-container" id="lyricsContainer">
-                        <div class="lyrics-spacer"></div>
-                        <p class="lyrics-placeholder">Selectionnez une chanson</p>
-                        <div class="lyrics-spacer"></div>
-                    </div>
-                </div>
-
-                <!-- ─── PLAYER BAR BOTTOM (Karafun-style) ─── -->
-                <div class="kara-bottom">
-                    <div class="kara-player-bar">
-                        <!-- Cover + info -->
-                        <div class="kara-song-info">
-                            <div class="kara-cover" id="playerFullCover">
-                                <div class="cover-ph-lg"><i class="fas fa-music"></i></div>
-                            </div>
-                            <div class="kara-meta">
-                                <div class="kara-title" id="playerFullTitle">-</div>
-                                <div class="kara-artist" id="playerFullArtist">-</div>
-                            </div>
-                        </div>
-
-                        <!-- Controls -->
-                        <div class="kara-controls">
-                            <button class="kara-ctrl-btn" id="fpBtnPrev"><i class="fas fa-backward-step"></i></button>
-                            <button class="kara-ctrl-btn kara-play-btn" id="fpBtnPlay"><i class="fas fa-pause" id="fpPlayIcon"></i></button>
-                            <button class="kara-ctrl-btn" id="fpBtnNext"><i class="fas fa-forward-step"></i></button>
-                        </div>
-
-                        <!-- Progress -->
-                        <div class="kara-progress">
-                            <span class="kara-time" id="fpTimeCur">0:00</span>
-                            <div class="kara-bar" id="fpBar">
-                                <div class="kara-bar-fill" id="fpBarFill"></div>
-                            </div>
-                            <span class="kara-time" id="fpTimeRemain">-0:00</span>
-                        </div>
-
-                        <!-- Personnaliser button -->
-                        <button class="kara-custom-btn" id="customizeBtn">
-                            <i class="fas fa-sliders-h"></i> Personnaliser
-                        </button>
-                    </div>
-
-                    <!-- ─── PERSONNALISER POPOVER ─── -->
-                    <div class="kara-popover" id="customizePopover" hidden>
-                        <div class="kara-pop-title">Volumes</div>
-                        <div class="kara-pop-row">
-                            <span class="kara-pop-label">Choeurs (Voix)</span>
-                            <input type="range" id="fpSliderVocals" min="0" max="100" value="100" class="kara-slider kara-slider-vocals">
-                        </div>
-                        <div class="kara-pop-row">
-                            <span class="kara-pop-label">Guide vocal</span>
-                            <input type="range" id="fpSliderInstrumental" min="0" max="100" value="100" class="kara-slider kara-slider-instru">
-                        </div>
-                        <div class="kara-pop-divider"></div>
-                        <div class="kara-pop-row">
-                            <span class="kara-pop-label">Tonalite</span>
-                            <div class="kara-pop-stepper">
-                                <button class="pt-btn" data-pitch="-1">-</button>
-                                <span class="pt-value" id="pitchValue">0</span>
-                                <button class="pt-btn" data-pitch="+1">+</button>
-                            </div>
-                        </div>
-                        <div class="kara-pop-row">
-                            <span class="kara-pop-label">Tempo</span>
-                            <div class="kara-pop-stepper">
-                                <button class="pt-btn" data-tempo="-5">-</button>
-                                <span class="pt-value" id="tempoValue">100%</span>
-                                <button class="pt-btn" data-tempo="+5">+</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- ─── FILE D'ATTENTE (bottom panel) ─── -->
-                    <div class="kara-queue-bar">
-                        <div class="kara-queue-header">
-                            <span><i class="fas fa-list"></i> File d'attente</span>
-                            <span class="kara-queue-count" id="queueCount">0 chanson</span>
-                        </div>
-                        <div class="kara-queue-list" id="queueList"></div>
-                        <div class="kara-queue-empty" id="queueEmpty">
-                            <p>Votre file d'attente est vide.</p>
-                            <small>Ajoutez des chansons depuis la bibliotheque.</small>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
         </main>
 
-        <!-- ═══ PLAYER PANEL (côté droit — style KaraFun) ═══ -->
-        <aside class="player-panel" id="playerPanel">
-            <div class="player-panel-inner">
-                <!-- Lyrics zone -->
-                <div class="pp-lyrics" id="ppLyrics">
-                    <p class="lyrics-placeholder">Sélectionnez une chanson pour commencer</p>
+        <!-- ═══ VUE PLAYER — plein écran, 2 colonnes ═══ -->
+        <div class="vp" id="viewPlayer" style="display:none;">
+            <!-- COL GAUCHE — liste des chansons (drag source) -->
+            <div class="vp-songs">
+                <div class="vp-songs-header">
+                    <button class="vp-back" id="vpBack" title="Retour"><i class="fas fa-chevron-left"></i></button>
+                    <h3>Bibliothèque</h3>
                 </div>
-
-                <!-- Queue (drag & drop) -->
-                <div class="pp-queue" id="ppQueue">
-                    <div class="pp-queue-header">
-                        <span><i class="fas fa-list"></i> File d'attente</span>
-                        <span id="ppQueueCount">0</span>
-                    </div>
-                    <div id="ppQueueList"></div>
-                    <div class="pp-queue-empty" id="ppQueueEmpty">Ajoutez des chansons depuis la bibliothèque</div>
+                <div class="vp-songs-search">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="vpSearchInput" placeholder="Filtrer...">
                 </div>
-
-                <!-- Controls -->
-                <div class="pp-controls">
-                    <div class="pp-song-info">
-                        <div class="pp-cover" id="ppCover">
-                            <div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2);font-size:20px;"><i class="fas fa-music"></i></div>
-                        </div>
-                        <div class="pp-meta">
-                            <div class="pp-title" id="ppTitle">Aucune chanson</div>
-                            <div class="pp-artist" id="ppArtist">-</div>
-                        </div>
-                    </div>
-                    <div class="pp-btns">
-                        <button class="pp-btn" id="btnPrev"><i class="fas fa-backward-step"></i></button>
-                        <button class="pp-btn" id="btnBack10"><i class="fas fa-rotate-left"></i></button>
-                        <button class="pp-btn pp-btn-play" id="btnPlay"><i class="fas fa-play" id="playIcon"></i></button>
-                        <button class="pp-btn" id="btnFwd10"><i class="fas fa-rotate-right"></i></button>
-                        <button class="pp-btn" id="btnNext"><i class="fas fa-forward-step"></i></button>
-                    </div>
-                    <div class="pp-progress">
-                        <span class="pp-time" id="ppTimeCur">0:00</span>
-                        <div class="pp-bar" id="ppBar">
-                            <div class="pp-bar-fill" id="ppBarFill"></div>
-                        </div>
-                        <span class="pp-time" id="ppTimeTotal">0:00</span>
-                    </div>
-                    <div class="pp-sliders">
-                        <div class="pp-slider-group">
-                            <i class="fas fa-microphone" title="Voix"></i>
-                            <input type="range" id="sliderVocals" min="0" max="100" value="100">
-                        </div>
-                        <div class="pp-slider-group">
-                            <i class="fas fa-guitar" title="Instrumental"></i>
-                            <input type="range" id="sliderInstrumental" min="0" max="100" value="100">
-                        </div>
-                    </div>
-                </div>
+                <div class="vp-songs-list" id="vpSongsList"></div>
             </div>
-        </aside>
+
+            <!-- COL DROITE — player dans conteneur liquid glass -->
+            <div class="vp-player">
+              <div class="vp-player-glass">
+                <!-- Bandeau pub/annonce (configurable par admin) -->
+                <div class="vp-banner" id="vpBanner" style="display:none;">
+                    <i class="fas fa-bullhorn"></i>
+                    <span id="vpBannerText"></span>
+                </div>
+                <!-- HAUT — paroles -->
+                <div class="vp-lyrics" id="ppLyrics">
+                    <p class="lyrics-placeholder">Sélectionnez une chanson</p>
+                </div>
+
+                <!-- BAS — contrôles + queue -->
+                <div class="vp-bottom">
+                    <!-- Contrôles -->
+                    <div class="vp-controls">
+                        <div class="vp-song-info">
+                            <div class="vp-cover" id="ppCover">
+                                <div class="vp-cover-ph"><i class="fas fa-music"></i></div>
+                            </div>
+                            <div class="vp-meta">
+                                <div class="vp-title" id="ppTitle">Aucune chanson</div>
+                                <div class="vp-artist" id="ppArtist">-</div>
+                            </div>
+                        </div>
+                        <div class="vp-btns">
+                            <button class="vp-btn" id="btnPrev"><i class="fas fa-backward-step"></i></button>
+                            <button class="vp-btn" id="btnBack10"><i class="fas fa-rotate-left"></i></button>
+                            <button class="vp-btn vp-btn-play" id="btnPlay"><i class="fas fa-play" id="playIcon"></i></button>
+                            <button class="vp-btn" id="btnFwd10"><i class="fas fa-rotate-right"></i></button>
+                            <button class="vp-btn" id="btnNext"><i class="fas fa-forward-step"></i></button>
+                        </div>
+                        <div class="vp-progress">
+                            <span class="vp-time" id="ppTimeCur">0:00</span>
+                            <div class="vp-bar" id="ppBar">
+                                <div class="vp-bar-fill" id="ppBarFill"></div>
+                            </div>
+                            <span class="vp-time" id="ppTimeTotal">0:00</span>
+                        </div>
+                        <div class="vp-sliders">
+                            <div class="vp-slider-group">
+                                <i class="fas fa-microphone" title="Voix"></i>
+                                <input type="range" id="sliderVocals" min="0" max="100" value="100">
+                            </div>
+                            <div class="vp-slider-group">
+                                <i class="fas fa-guitar" title="Instrumental"></i>
+                                <input type="range" id="sliderInstrumental" min="0" max="100" value="100">
+                            </div>
+                            <div class="vp-slider-group vp-tempo-group">
+                                <i class="fas fa-gauge" title="Tempo"></i>
+                                <input type="range" id="sliderTempo" min="50" max="120" value="100" step="5">
+                                <span class="vp-tempo-val" id="tempoVal">1.0x</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- File d'attente -->
+                    <div class="vp-queue">
+                        <div class="vp-queue-header">
+                            <span><i class="fas fa-list"></i> File d'attente</span>
+                            <span id="ppQueueCount">0 chanson</span>
+                        </div>
+                        <div id="ppQueueList" class="vp-queue-list"></div>
+                        <div class="vp-queue-empty" id="ppQueueEmpty">Glissez des chansons ici</div>
+                    </div>
+                </div>
+              </div><!-- /vp-player-glass -->
+            </div>
+        </div>
+    </div>
+
+    <!-- ─── Mini Player (visible quand musique en cours hors vue player) ─── -->
+    <div class="mp" id="miniPlayer" style="display:none;">
+        <div class="mp-cover" id="mpCover"></div>
+        <div class="mp-info">
+            <div class="mp-title" id="mpTitle">—</div>
+            <div class="mp-artist" id="mpArtist">—</div>
+        </div>
+        <div class="mp-progress-bg">
+            <div class="mp-progress-fill" id="mpProgressFill"></div>
+        </div>
+        <button class="mp-btn" id="mpBtnPlay"><i class="fas fa-pause" id="mpPlayIcon"></i></button>
+        <button class="mp-btn" id="mpBtnNext"><i class="fas fa-forward-step"></i></button>
     </div>
 
     <!-- ─── Bottom Tab Bar (5 onglets — §5 Cahier des Charges) ──────── -->
@@ -366,6 +298,18 @@
     let currentLineIndex = -1;
     let isSeeking = false;
     let playToken = 0;
+    let currentTempo = 1.0;
+
+    // Polices lyrics — rotation par chanson
+    const LYRIC_FONTS = [
+        "'Permanent Marker'",
+        "'Caveat'",
+        "'Pacifico'",
+        "'Bebas Neue'",
+        "'Righteous'",
+        "'Bangers'",
+    ];
+    let currentFontIdx = 0;
 
     // ─── AudioEngine singleton ─────────────────────────────────────────────────
     import audioEngine from '../renderer/audio/engine.js';
@@ -436,14 +380,104 @@
         });
     });
 
-    // ─── Player panel (split view — remplace le fullscreen overlay) ─────
-    function openFullPlayer() {
-        // En mode split, ouvrir le player panel
-        document.querySelector('.app-shell').classList.add('has-player');
+    // ─── Vue Player (plein écran, 2 colonnes) ─────────────────────
+    const appShell = document.querySelector('.app-shell');
+    const viewPlayer = document.getElementById('viewPlayer');
+    let previousView = 'home';
+
+    const miniPlayer = document.getElementById('miniPlayer');
+
+    function showPlayerView() {
+        previousView = currentView;
+        document.querySelector('.main-area').style.display = 'none';
+        document.getElementById('tabbar').style.display = 'none';
+        miniPlayer.style.display = 'none';
+        viewPlayer.style.display = '';
+        renderVpSongsList();
     }
-    function closeFullPlayer() {
-        document.querySelector('.app-shell').classList.remove('has-player');
+
+    function hidePlayerView() {
+        viewPlayer.style.display = 'none';
+        document.querySelector('.main-area').style.display = '';
+        document.getElementById('tabbar').style.display = '';
+        // Afficher le mini-player si une chanson est en cours
+        if (currentSong) updateMiniPlayer();
+        navigate(previousView);
     }
+
+    // Mini-player — mise à jour
+    async function updateMiniPlayer() {
+        if (!currentSong) { miniPlayer.style.display = 'none'; return; }
+        miniPlayer.style.display = '';
+        document.getElementById('mpTitle').textContent = fmt(currentSong.title);
+        document.getElementById('mpArtist').textContent = currentSong.artist || 'Artiste inconnu';
+        document.getElementById('mpPlayIcon').className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+        if (currentSong.has_cover) {
+            const cover = await window.karaoking.getCoverUrl(currentSong.id);
+            document.getElementById('mpCover').innerHTML = `<img src="${cover}" alt="">`;
+        } else {
+            document.getElementById('mpCover').innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;color:var(--text-dim);"><i class="fas fa-music"></i></div>`;
+        }
+    }
+
+    // Clic sur mini-player → retour à la vue player
+    miniPlayer.addEventListener('click', (e) => {
+        if (e.target.closest('.mp-btn')) return;
+        showPlayerView();
+    });
+
+    // Boutons du mini-player
+    document.getElementById('mpBtnPlay').addEventListener('click', () => {
+        if (!currentSong) return;
+        if (audioEngine.isPlaying) { audioEngine.pause(); isPlaying = false; }
+        else { audioEngine.play(); isPlaying = true; }
+        updatePlayIcon();
+        document.getElementById('mpPlayIcon').className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+    });
+    document.getElementById('mpBtnNext').addEventListener('click', () => nextSong());
+
+    // Bouton retour
+    document.getElementById('vpBack').addEventListener('click', hidePlayerView);
+
+    // Remplir la liste des chansons dans la colonne gauche
+    async function renderVpSongsList(filter = '') {
+        const list = document.getElementById('vpSongsList');
+        const filtered = filter
+            ? songs.filter(s => (s.title + ' ' + (s.artist || '')).toLowerCase().includes(filter.toLowerCase()))
+            : songs;
+        list.innerHTML = await buildSongRows(filtered);
+        bindSongRows(list);
+        // Drag & drop vers la queue (zone droite)
+        list.querySelectorAll('.song-row[data-id]').forEach(row => {
+            row.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/song-id', row.dataset.id);
+                e.dataTransfer.effectAllowed = 'copy';
+                row.style.opacity = '0.5';
+            });
+            row.addEventListener('dragend', () => { row.style.opacity = '1'; });
+        });
+    }
+
+    // Filtre de recherche dans la vue player
+    document.getElementById('vpSearchInput').addEventListener('input', (e) => {
+        renderVpSongsList(e.target.value);
+    });
+
+    // Drop zone sur la queue
+    const vpQueue = document.querySelector('.vp-queue');
+    vpQueue.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        vpQueue.classList.add('drag-over');
+    });
+    vpQueue.addEventListener('dragleave', () => {
+        vpQueue.classList.remove('drag-over');
+    });
+    vpQueue.addEventListener('drop', (e) => {
+        e.preventDefault();
+        vpQueue.classList.remove('drag-over');
+        const songId = e.dataTransfer.getData('text/song-id');
+        if (songId) addToQueue(songId);
+    });
 
     // ─── Library sub-nav ─────────────────────────────────────────────────
     let librarySection = 'recent';
@@ -976,7 +1010,7 @@
             const playing = currentSong && currentSong.id === s.id;
             const isFav = favs.has(s.id);
             html += `
-            <div class="song-row ${playing ? 'playing' : ''}" data-id="${esc(s.id)}">
+            <div class="song-row ${playing ? 'playing' : ''}" data-id="${esc(s.id)}" draggable="true">
                 ${showNum ? `<span class="sr-num">${i + 1}</span>` : ''}
                 <div class="sr-cover">
                     <img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div class=sr-cover-ph><i class=\\'fas fa-music\\'></i></div>'">
@@ -1000,6 +1034,13 @@
                 if (e.target.closest('.sr-fav') || e.target.closest('.sr-queue')) return;
                 playSong(row.dataset.id);
             });
+            // Drag & drop vers le player
+            row.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/song-id', row.dataset.id);
+                e.dataTransfer.effectAllowed = 'copy';
+                row.style.opacity = '0.5';
+            });
+            row.addEventListener('dragend', () => { row.style.opacity = '1'; });
         });
         container.querySelectorAll('.sr-fav[data-fav]').forEach(btn => {
             btn.addEventListener('click', (e) => {
@@ -1036,6 +1077,14 @@
         // Log play for admin stats
         window.karaoking.postApi('/api/play-log', { song_id: songId }).catch(() => {});
 
+        // Police lyrics — rotation par chanson
+        currentFontIdx = (currentFontIdx + 1) % LYRIC_FONTS.length;
+        const lyricsEl = document.getElementById('ppLyrics');
+        if (lyricsEl) lyricsEl.style.setProperty('--lyric-font', LYRIC_FONTS[currentFontIdx]);
+
+        // Appliquer le tempo courant
+        audioEngine.setPlaybackRate(currentTempo);
+
         // Display setup
         updatePlayerBar();
         loadLyrics(song.id);
@@ -1052,8 +1101,8 @@
     async function updatePlayerBar() {
         if (!currentSong) return;
 
-        // Ouvrir le panneau player
-        document.querySelector('.app-shell').classList.add('has-player');
+        // Ouvrir la vue player plein écran
+        showPlayerView();
 
         document.getElementById('ppTitle').textContent = fmt(currentSong.title);
         document.getElementById('ppArtist').textContent = currentSong.artist || 'Artiste inconnu';
@@ -1061,19 +1110,30 @@
         // Cover
         if (currentSong.has_cover) {
             const cover = await window.karaoking.getCoverUrl(currentSong.id);
-            document.getElementById('ppCover').innerHTML = `<img src="${cover}" alt="" onerror="this.parentElement.innerHTML='<div style=\\'width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2);font-size:20px\\'><i class=\\'fas fa-music\\'></i></div>'">`;
+            document.getElementById('ppCover').innerHTML = `<img src="${cover}" alt="">`;
         } else {
-            document.getElementById('ppCover').innerHTML = `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:rgba(255,255,255,0.05);color:rgba(255,255,255,0.2);font-size:20px;"><i class="fas fa-music"></i></div>`;
+            document.getElementById('ppCover').innerHTML = `<div class="vp-cover-ph"><i class="fas fa-music"></i></div>`;
         }
 
         // Track sliders visibility
         const hasMulti = currentSong.has_vocals && currentSong.has_instrumental;
         document.getElementById('sliderVocals').parentElement.style.opacity = hasMulti ? '1' : '0.3';
         document.getElementById('sliderInstrumental').parentElement.style.opacity = hasMulti ? '1' : '0.3';
+
+        // Bandeau pub/annonce
+        const banner = document.getElementById('vpBanner');
+        if (currentSong.banner_text) {
+            document.getElementById('vpBannerText').textContent = currentSong.banner_text;
+            banner.style.display = '';
+        } else {
+            banner.style.display = 'none';
+        }
     }
 
     function updatePlayIcon() {
-        document.getElementById('playIcon').className = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+        const cls = isPlaying ? 'fas fa-pause' : 'fas fa-play';
+        document.getElementById('playIcon').className = cls;
+        document.getElementById('mpPlayIcon').className = cls;
     }
 
     // Controls
@@ -1128,6 +1188,13 @@
         audioEngine.setInstrumentalGain(e.target.value / 100);
     });
 
+    // Tempo slider — ralentit/accélère musique + paroles ensemble
+    document.getElementById('sliderTempo').addEventListener('input', (e) => {
+        currentTempo = e.target.value / 100;
+        audioEngine.setPlaybackRate(currentTempo);
+        document.getElementById('tempoVal').textContent = currentTempo.toFixed(1) + 'x';
+    });
+
     // Progress bar references (player panel)
     const ppBar = document.getElementById('ppBar');
     const ppBarFill = document.getElementById('ppBarFill');
@@ -1156,9 +1223,12 @@
         document.addEventListener('mouseup', end);
     });
 
-    // Sync player panel progress with audio tick
+    // Sync player panel + mini-player progress with audio tick
+    const mpProgressFill = document.getElementById('mpProgressFill');
     audioEngine.startTick((cur, dur, playing) => {
-        ppBarFill.style.width = (cur / dur * 100) + '%';
+        const pct = dur > 0 ? (cur / dur * 100) : 0;
+        ppBarFill.style.width = pct + '%';
+        mpProgressFill.style.width = pct + '%';
         document.getElementById('ppTimeCur').textContent = fmtTime(cur);
         document.getElementById('ppTimeTotal').textContent = fmtTime(dur);
         updateLyricsHighlight(cur);
@@ -1214,9 +1284,11 @@
     }
 
     function applyAdaptiveColors(palette) {
-        const bgEl = document.getElementById('adaptiveBg');
+        // Appliquer les couleurs au fond du player panel
+        const ppLyrics = document.getElementById('ppLyrics');
+        if (!ppLyrics) return;
         const [c1, c2] = palette;
-        bgEl.style.background = `radial-gradient(ellipse at 30% 20%, rgba(${c1[0]},${c1[1]},${c1[2]},0.4) 0%, rgba(${c2[0]},${c2[1]},${c2[2]},0.2) 50%, var(--bg) 100%)`;
+        ppLyrics.style.background = `radial-gradient(ellipse at 30% 20%, rgba(${c1[0]},${c1[1]},${c1[2]},0.25) 0%, transparent 50%), radial-gradient(ellipse at 70% 80%, rgba(${c2[0]},${c2[1]},${c2[2]},0.15) 0%, transparent 50%), var(--player-bg)`;
     }
 
     // ════════════════════════════════════════════════════════════════════════════
@@ -1224,18 +1296,7 @@
     // ════════════════════════════════════════════════════════════════════════════
     let queue = [];
 
-    // Personnaliser popover (désactivé en mode split — les sliders sont dans le player panel)
-    const _popover = document.getElementById('customizePopover');
-    const _customizeBtn = document.getElementById('customizeBtn');
-    if (_popover && _customizeBtn) {
-        _popover.hidden = false;
-        _customizeBtn.addEventListener('click', () => _popover.classList.toggle('visible'));
-        document.addEventListener('click', (e) => {
-            if (_popover.classList.contains('visible') && !e.target.closest('.kara-popover') && !e.target.closest('#customizeBtn')) {
-                _popover.classList.remove('visible');
-            }
-        });
-    }
+    // Popover supprimé — sliders intégrés dans le player panel
 
     function addToQueue(songId) {
         const song = songs.find(s => s.id === songId);
@@ -1304,21 +1365,8 @@
     let pitchSemitones = 0;
     let tempoPercent = 100;
 
-    document.querySelectorAll('[data-pitch]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            pitchSemitones = Math.max(-6, Math.min(6, pitchSemitones + parseInt(btn.dataset.pitch)));
-            document.getElementById('pitchValue').textContent = pitchSemitones;
-            applyPitchTempo();
-        });
-    });
-
-    document.querySelectorAll('[data-tempo]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            tempoPercent = Math.max(70, Math.min(130, tempoPercent + parseInt(btn.dataset.tempo)));
-            document.getElementById('tempoValue').textContent = tempoPercent + '%';
-            applyPitchTempo();
-        });
-    });
+    // Pitch/tempo — les boutons sont supprimés, mais on garde les fonctions
+    // pour une future réintégration dans le player panel
 
     function applyPitchTempo() {
         const rate = tempoPercent / 100;
@@ -1356,7 +1404,8 @@
 
     function setBgMode(mode) {
         bgMode = mode;
-        const bgEl = document.getElementById('adaptiveBg');
+        const bgEl = document.getElementById('adaptiveBg') || document.getElementById('ppLyrics');
+        if (!bgEl) return;
         // Cleanup
         if (bgAnimFrame) { cancelAnimationFrame(bgAnimFrame); bgAnimFrame = null; }
         bgEl.querySelectorAll('.bubble, canvas').forEach(el => el.remove());
@@ -1492,9 +1541,13 @@
         }
         html += '<div class="lyrics-spacer"></div>';
         container.innerHTML = html;
+        container.scrollTop = 0;
     }
 
     function updateLyricsHighlight(rawTime) {
+        const container = document.getElementById('ppLyrics');
+        if (!container) return;
+
         // Apply per-song offset (set by admin in edit modal)
         const offset = (currentSong && currentSong.lyrics_offset) ? currentSong.lyrics_offset : 0;
         const time = rawTime + offset;
@@ -1505,7 +1558,8 @@
             if (time >= lyrics[i].time) newIdx = i; else break;
         }
 
-        const lines = document.querySelectorAll('.lyrics-line');
+        // Scopé au container ppLyrics uniquement
+        const lines = container.querySelectorAll('.lyrics-line');
 
         // Update classes only when line changes
         if (newIdx !== currentLineIndex) {
@@ -1516,10 +1570,9 @@
                 else if (i === currentLineIndex) l.classList.add('active');
                 else if (i === currentLineIndex + 1) l.classList.add('upcoming');
             });
-            // Scroll active line to center
+            // Scroll active line au centre du container
             const active = lines[currentLineIndex];
-            const container = document.getElementById('ppLyrics');
-            if (active && container) {
+            if (active) {
                 container.scrollTo({
                     top: active.offsetTop - container.clientHeight / 2 + active.offsetHeight / 2,
                     behavior: 'smooth'
@@ -1538,7 +1591,7 @@
     window.playSong = playSong;
     window.setDiscoverSection = setDiscoverSection;
     window.setLibrarySection = setLibrarySection;
-    window.openFullPlayer = openFullPlayer;
+    window.showPlayerView = showPlayerView;
     window.addToQueue = addToQueue;
     window.setBgMode = setBgMode;
 
