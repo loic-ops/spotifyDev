@@ -1191,3 +1191,40 @@ body {
     .song-grid { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 24px; }
     .playback-btns { gap: 24px; }
 }
+
+.ad-banner {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: linear-gradient(90deg, #ff6b6b, #4ecdc4, #45b7d1);
+  color: white;
+  padding: 12px 32px;
+  border-radius: 50px;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+  max-width: 90vw;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  box-shadow: 0 12px 40px rgba(0,0,0,0.3);
+  z-index: 1000;
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,0.2);
+  animation: adSlideIn 0.4s ease-out;
+}
+
+@keyframes adSlideIn {
+  from { transform: translateX(-50%) translateY(20px); opacity: 0; }
+  to { transform: translateX(-50%) translateY(0); opacity: 1; }
+}
+
+@media (max-width: 768px) {
+  .ad-banner {
+    bottom: 80px;
+    font-size: 14px;
+    padding: 10px 24px;
+    max-width: 85vw;
+  }
+}

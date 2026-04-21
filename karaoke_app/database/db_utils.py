@@ -228,3 +228,43 @@ def change_admin_password(admin_id, current_password, new_password):
         return True
     finally:
         s.close()
+
+
+# Global ads functions
+def get_active_ad():
+    from database.models.admin import Ad
+    from datetime import datetime
+    s = get_session()
+    try:
+        now = datetime.utcnow()
+        ad = s.query(Ad).filter(
+            Ad.active == True,
+            Ad.start_time <= now,
+            Ad.end_time >= now
+        ).first()
+        if ad:
+            return {'id': ad.id, 'text': ad.text, 'active': True}
+        return None
+    finally:
+        s.close()
+
+
+def upsert_ad(data):
+    from database.models.admin import Ad
+    from datetime import datetime
+    s = get_session()
+    try:
+        # Single global ad (id=1)
+        ad = s.query(Ad).filter_by(id=1).first()
+        if not ad:
+            ad = Ad(id=1)
+            s.add(ad)
+        ad.text = data.get('text', '').strip()[:500]
+        ad.active = bool(data.get('active', False))
+        ad.start_time = datetime.fromisoformat(data.get('start_time')) if data.get('start_time') else None
+        ad.end_time = datetime.fromisoformat(data.get('end_time')) if data.get('end_time') else None
+        s.commit()
+        return {'id': ad.id, 'text': ad.text, 'active': ad.active}
+    finally:
+        s.close()
+

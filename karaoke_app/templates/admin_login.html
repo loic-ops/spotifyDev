@@ -38,9 +38,9 @@
                         <input type="checkbox" name="remember_me" style="accent-color:var(--accent); width:16px; height:16px; cursor:pointer;">
                         Se souvenir de moi
                     </label>
-                    <span style="font-size:13px; color:var(--text-muted);">
-                        Contactez un administrateur en cas d'oubli
-                    </span>
+                    <a href="/admin/forgot-password" style="font-size:13px; color:var(--accent); text-decoration:none;">
+                        Mot de passe oublie ?
+                    </a>
                 </div>
                 {% if error %}
                 <p style="color:var(--danger); font-size:13px; margin-bottom:16px;">{{ error }}</p>

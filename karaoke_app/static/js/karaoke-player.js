@@ -565,6 +565,27 @@ class KaraokePlayer {
         await this.loadLyrics(song.id);
         if (myToken !== this._playToken) return;
 
+        // Load global ad banner
+        try {
+            const adResp = await fetch('/api/ads/active');
+            const ad = await adResp.json();
+            if (ad.text) {
+                // Remove previous banner
+                const prevBanner = this.lyricsScroll.previousElementSibling;
+                if (prevBanner && prevBanner.classList.contains('ad-banner')) {
+                    prevBanner.remove();
+                }
+                // Add new banner
+                const banner = document.createElement('div');
+                banner.className = 'ad-banner';
+                banner.textContent = ad.text;
+                banner.innerHTML = ad.text.replace(/\\n/g, '<br>');
+                this.lyricsScroll.parentNode.insertBefore(banner, this.lyricsScroll);
+            }
+        } catch (e) {
+            console.log('No ad banner');
+        }
+
         this.songListView.style.display = 'none';
         this.nowPlayingView.style.display = '';
         this._updateListHighlight();

@@ -34,3 +34,17 @@ class Admin(Base):
 
     def __repr__(self):
         return f"<Admin(id={self.id}, username={self.username}, role={self.role})>"
+
+
+class Ad(Base):
+    __tablename__ = 'ads'
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    text = Column(String(500))
+    active = Column(Boolean, default=False)
+    start_time = Column(DateTime)
+    end_time = Column(DateTime)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    def __repr__(self):
+        return f"<Ad(id={self.id}, active={self.active}, text={self.text[:50]}...>"

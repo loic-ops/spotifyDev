@@ -5,6 +5,7 @@ from services.auth import admin_required, csrf_protected
 from services.rate_limit import check_rate_limit, reset_rate_limit
 from database.db_utils import (
     create_admin, authenticate_admin, admin_exists, change_admin_password,
+    reset_admin_password,
 )
 
 admin_bp = Blueprint('admin', __name__, url_prefix='/admin')
@@ -90,6 +91,38 @@ def change_password():
     return jsonify(ok=False, error="Mot de passe actuel incorrect"), 400
 
 
+@admin_bp.route('/forgot-password', methods=['GET', 'POST'])
+def forgot_password():
+    error = None
+    success = None
+    if request.method == 'POST':
+        ip = request.remote_addr
+        if check_rate_limit(ip):
+            error = 'Trop de tentatives. Attendez 5 minutes.'
+            return render_template('admin_forgot_password.html', error=error)
+
+        username = request.form.get('username', '').strip()
+        current_pwd = request.form.get('current_password', '')
+        new_pwd = request.form.get('new_password', '')
+        confirm = request.form.get('confirm_password', '')
+
+        if len(new_pwd) < 8:
+            error = 'Le nouveau mot de passe doit contenir au moins 8 caracteres'
+        elif new_pwd != confirm:
+            error = 'Les mots de passe ne correspondent pas'
+        elif current_pwd == new_pwd:
+            error = 'Le nouveau mot de passe doit etre different de l\'ancien'
+        elif not authenticate_admin(username, current_pwd):
+            error = 'Identifiants incorrects'
+        elif reset_admin_password(username, new_pwd):
+            reset_rate_limit(ip)
+            success = 'Mot de passe reinitialise avec succes'
+        else:
+            error = 'Erreur lors de la reinitialisation'
+
+    return render_template('admin_forgot_password.html', error=error, success=success)
+
+
 @admin_bp.route('/logout', methods=['GET', 'POST'])
 def logout():
     session.clear()
@@ -114,6 +147,12 @@ def upload_page():
 @admin_required
 def alerts_page():
     return render_template('admin_alerts.html')
+
+
+@admin_bp.route('/ads')
+@admin_required
+def ads_page():
+    return render_template('admin_ads.html')
 
 
 @admin_bp.route('/catalogue')

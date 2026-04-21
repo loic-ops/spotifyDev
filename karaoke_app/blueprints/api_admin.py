@@ -946,3 +946,27 @@ def analytics_overview():
         })
     finally:
         s.close()
+
+
+# Global ads API
+@api_admin_bp.route('/admin/ads', methods=['GET', 'POST'])
+@admin_required
+@csrf_protected
+def manage_ads():
+    if request.method == 'GET':
+        from database.db_utils import upsert_ad
+        ad = upsert_ad({})
+        return jsonify(ad)
+    
+    data = request.get_json() or {}
+    from database.db_utils import upsert_ad
+    result = upsert_ad(data)
+    return jsonify(result)
+
+
+@api_admin_bp.route('/ads/active')
+def get_active_ad_api():
+    from database.db_utils import get_active_ad
+    ad = get_active_ad()
+    return jsonify(ad or {})
+
