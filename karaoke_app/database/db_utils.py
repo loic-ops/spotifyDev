@@ -231,7 +231,29 @@ def change_admin_password(admin_id, current_password, new_password):
 
 
 # Global ads functions
+def get_all_ads():
+    """Récupère toutes les pubs, triées par date de création (plus récente en premier)"""
+    from database.models.admin import Ad
+    s = get_session()
+    try:
+        ads = s.query(Ad).order_by(Ad.id.desc()).all()
+        result = []
+        for ad in ads:
+            result.append({
+                'id': ad.id,
+                'text': ad.text,
+                'active': ad.active,
+                'start_time': ad.start_time.isoformat() if ad.start_time else None,
+                'end_time': ad.end_time.isoformat() if ad.end_time else None,
+                'updated_at': ad.updated_at.isoformat() if ad.updated_at else None
+            })
+        return result
+    finally:
+        s.close()
+
+
 def get_active_ad():
+    """Récupère la pub actuellement ACTIVE (une seule parmi toutes)"""
     from database.models.admin import Ad
     from datetime import datetime
     s = get_session()
@@ -249,22 +271,77 @@ def get_active_ad():
         s.close()
 
 
-def upsert_ad(data):
+def create_ad(data):
+    """Crée une nouvelle pub"""
     from database.models.admin import Ad
     from datetime import datetime
     s = get_session()
     try:
-        # Single global ad (id=1)
-        ad = s.query(Ad).filter_by(id=1).first()
-        if not ad:
-            ad = Ad(id=1)
-            s.add(ad)
+        ad = Ad()
         ad.text = data.get('text', '').strip()[:500]
         ad.active = bool(data.get('active', False))
         ad.start_time = datetime.fromisoformat(data.get('start_time')) if data.get('start_time') else None
         ad.end_time = datetime.fromisoformat(data.get('end_time')) if data.get('end_time') else None
+        s.add(ad)
         s.commit()
-        return {'id': ad.id, 'text': ad.text, 'active': ad.active}
+        return {
+            'id': ad.id,
+            'text': ad.text,
+            'active': ad.active,
+            'start_time': ad.start_time.isoformat() if ad.start_time else None,
+            'end_time': ad.end_time.isoformat() if ad.end_time else None,
+            'updated_at': ad.updated_at.isoformat() if ad.updated_at else None
+        }
     finally:
         s.close()
+
+
+def update_ad(ad_id, data):
+    """Met à jour une pub existante"""
+    from database.models.admin import Ad
+    from datetime import datetime
+    s = get_session()
+    try:
+        ad = s.query(Ad).filter_by(id=ad_id).first()
+        if not ad:
+            return None
+        
+        ad.text = data.get('text', ad.text).strip()[:500]
+        ad.active = bool(data.get('active', ad.active))
+        if data.get('start_time'):
+            ad.start_time = datetime.fromisoformat(data.get('start_time'))
+        if data.get('end_time'):
+            ad.end_time = datetime.fromisoformat(data.get('end_time'))
+        
+        s.commit()
+        return {
+            'id': ad.id,
+            'text': ad.text,
+            'active': ad.active,
+            'start_time': ad.start_time.isoformat() if ad.start_time else None,
+            'end_time': ad.end_time.isoformat() if ad.end_time else None,
+            'updated_at': ad.updated_at.isoformat() if ad.updated_at else None
+        }
+    finally:
+        s.close()
+
+
+def delete_ad(ad_id):
+    """Supprime une pub"""
+    from database.models.admin import Ad
+    s = get_session()
+    try:
+        ad = s.query(Ad).filter_by(id=ad_id).first()
+        if not ad:
+            return False
+        s.delete(ad)
+        s.commit()
+        return True
+    finally:
+        s.close()
+
+
+def upsert_ad(data):
+    """Legacy: crée une nouvelle pub (pour compatibilité)"""
+    return create_ad(data)
 

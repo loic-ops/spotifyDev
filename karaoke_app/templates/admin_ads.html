@@ -43,168 +43,283 @@
             <header class="admin-header">
                 <h1><i class="fas fa-ad"></i> Pubs Globales</h1>
                 <div class="admin-header-actions">
-                    <button class="btn btn-accent" onclick="saveAd()" id="saveAdBtn">
-                        <i class="fas fa-save"></i> Enregistrer
+                    <button class="btn btn-accent" onclick="openCreateAdModal()">
+                        <i class="fas fa-plus"></i> Créer une pub
                     </button>
                 </div>
             </header>
 
-            <div class="form-section">
-                <div class="form-card">
-                    <h3><i class="fas fa-megaphone" style="margin-right: 8px; color: var(--accent);"></i>Configuration Pub Bannière</h3>
-                    <p>Cette pub s'affiche automatiquement sur <strong>TOUTES</strong> les chansons jouées quand elle est active et dans la période définie.</p>
-                    
-                    <div class="form-group">
-                        <label for="adText">Texte à afficher</label>
-                        <textarea id="adText" class="form-input" placeholder="Ex: 'Sponsorisé par KaraoKing Premium - Écoutez sans pub !'"></textarea>
-                        <span class="form-hint">Max 500 caractères. S'affiche en bannière colorée en bas du player.</span>
-                    </div>
+            <!-- Infobox -->
+            <div style="background:rgba(29,185,84,0.08); border-left:3px solid var(--accent); border-radius:8px; padding:14px 16px; margin-bottom:24px;">
+                <p style="font-size:13px; color:var(--text-muted); margin:0; line-height:1.5;">
+                    <i class="fas fa-info-circle" style="color:var(--accent); margin-right:6px;"></i>
+                    <strong>Une seule pub à la fois peut être active.</strong> Celle marquée "ACTIVE" et dans la bonne période s'affiche sur tous les players.
+                </p>
+            </div>
 
-                    <div class="form-group">
-                        <label>
-                            <input type="checkbox" id="adActive">
-                            <strong>Activer la pub</strong>
-                        </label>
-                        <span class="form-hint">La pub ne s'affiche que si elle est activée ET dans la période valide.</span>
-                    </div>
-
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label for="adStart"><i class="fas fa-calendar-alt" style="margin-right: 6px; color: var(--accent); font-size: 12px;"></i>Début</label>
-                            <input type="datetime-local" id="adStart" class="form-input">
-                            <span class="form-hint">À partir de cette date/heure</span>
-                        </div>
-                        <div class="form-group">
-                            <label for="adEnd"><i class="fas fa-calendar-alt" style="margin-right: 6px; color: var(--accent); font-size: 12px;"></i>Fin</label>
-                            <input type="datetime-local" id="adEnd" class="form-input">
-                            <span class="form-hint">Jusqu'à cette date/heure</span>
-                        </div>
-                    </div>
-
-                    <div class="form-status" id="adStatus">
-                        <i class="fas fa-info-circle"></i>
-                        <span>Chargement du statut...</span>
-                    </div>
-                </div>
+            <!-- Liste des pubs -->
+            <div class="songs-table-wrapper" style="margin-bottom: 32px;">
+                <table class="songs-table" id="adsTable">
+                    <thead>
+                        <tr>
+                            <th style="width: 50px;">Statut</th>
+                            <th>Texte</th>
+                            <th style="width: 140px;">Début</th>
+                            <th style="width: 140px;">Fin</th>
+                            <th style="width: 80px;">Actif</th>
+                            <th style="width: 100px;">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="adsList">
+                        <tr style="text-align:center;">
+                            <td colspan="6" style="padding:20px; color:var(--text-dim);">
+                                <i class="fas fa-spinner fa-spin"></i> Chargement...
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
             </div>
         </main>
     </div>
 
+    <!-- Modal: Create/Edit Ad -->
+    <div class="modal" id="adModal" style="display:none;">
+        <div class="modal-dialog" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3 id="modalTitle">Créer une pub</h3>
+                <button type="button" class="btn-close" onclick="closeAdModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="adTextInput">Texte à afficher</label>
+                    <textarea id="adTextInput" class="form-input" placeholder="Sponsorisé par KaraoKing Premium..."></textarea>
+                    <span class="form-hint">Max 500 caractères. S'affiche en bannière colorée sur le player.</span>
+                </div>
+
+                <div class="form-group">
+                    <label>
+                        <input type="checkbox" id="adActiveInput">
+                        <strong>Activer cette pub</strong>
+                    </label>
+                </div>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="adStartInput">Début</label>
+                        <input type="datetime-local" id="adStartInput" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="adEndInput">Fin</label>
+                        <input type="datetime-local" id="adEndInput" class="form-input">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="closeAdModal()">Annuler</button>
+                <button type="button" class="btn btn-accent" onclick="saveAd()">
+                    <i class="fas fa-save"></i> Enregistrer
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         var csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute('content');
-        var currentAd = {};
+        var allAds = [];
+        var currentEditingId = null;
 
-        async function loadAd() {
+        // ─── Load & Init ───────────────────────────────────────────
+        async function loadAds() {
             try {
-                var resp = await fetch('/api/admin/ads');
-                currentAd = await resp.json();
-                document.getElementById('adText').value = currentAd.text || '';
-                document.getElementById('adActive').checked = currentAd.active || false;
-                document.getElementById('adStart').value = currentAd.start_time ? 
-                    new Date(currentAd.start_time).toISOString().slice(0,16) : '';
-                document.getElementById('adEnd').value = currentAd.end_time ? 
-                    new Date(currentAd.end_time).toISOString().slice(0,16) : '';
-                updateStatus();
-            } catch(e) {
-                console.error('loadAd error:', e);
+                const resp = await fetch('/api/admin/ads', {
+                    headers: {'X-CSRF-Token': csrfToken}
+                });
+                const result = await resp.json();
+                allAds = result.ads || [];
+                renderAdsList();
+            } catch (e) {
+                console.error('loadAds error:', e);
+                document.getElementById('adsList').innerHTML = 
+                    '<tr><td colspan="6" style="color:red; text-align:center; padding:20px;">Erreur de chargement</td></tr>';
             }
         }
 
-        function updateStatus() {
-            var active = document.getElementById('adActive').checked;
-            var now = new Date();
-            var start = document.getElementById('adStart').value ? new Date(document.getElementById('adStart').value) : null;
-            var end = document.getElementById('adEnd').value ? new Date(document.getElementById('adEnd').value) : null;
+        // ─── Render Table ────────────────────────────────────────
+        function renderAdsList() {
+            const tbody = document.getElementById('adsList');
+            if (allAds.length === 0) {
+                tbody.innerHTML = 
+                    '<tr style="text-align:center;"><td colspan="6" style="padding:20px; color:var(--text-dim);">Aucune pub créée. Créez-en une pour commencer.</td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = allAds.map(ad => {
+                const status = getAdStatus(ad);
+                const statusBadge = getStatusBadge(status);
+                const startStr = ad.start_time ? new Date(ad.start_time).toLocaleString('fr-FR') : '—';
+                const endStr = ad.end_time ? new Date(ad.end_time).toLocaleString('fr-FR') : '—';
+
+                return `
+                    <tr>
+                        <td>${statusBadge}</td>
+                        <td style="max-width: 300px; text-overflow: ellipsis; overflow: hidden; white-space: nowrap;">
+                            ${ad.text || '(vide)'}
+                        </td>
+                        <td style="font-size: 12px; color: var(--text-muted);">${startStr}</td>
+                        <td style="font-size: 12px; color: var(--text-muted);">${endStr}</td>
+                        <td style="text-align: center;">
+                            ${ad.active ? '<i class="fas fa-check" style="color: var(--accent);"></i>' : '—'}
+                        </td>
+                        <td style="text-align: center;">
+                            <button class="btn-icon" onclick="editAd(${ad.id})" title="Éditer">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn-icon" onclick="deleteAd(${ad.id})" title="Supprimer" style="color: var(--danger);">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
+        }
+
+        function getAdStatus(ad) {
+            if (!ad.active) return 'inactive';
+            const now = new Date();
+            const start = ad.start_time ? new Date(ad.start_time) : null;
+            const end = ad.end_time ? new Date(ad.end_time) : null;
             
-            var statusEl = document.getElementById('adStatus');
-            if (!active) {
-                statusEl.innerHTML = '<i class="fas fa-times-circle"></i> <span style="color:var(--danger);">❌ Pub désactivée</span>';
-                statusEl.style.backgroundColor = 'rgba(233, 20, 41, 0.08)';
-                statusEl.style.borderLeftColor = '#e91429';
-                return;
-            }
-            if (!start || !end || start > end) {
-                statusEl.innerHTML = '<i class="fas fa-exclamation-triangle"></i> <span style="color:#ff9800;">⚠️ Période invalide ou manquante</span>';
-                statusEl.style.backgroundColor = 'rgba(255, 152, 0, 0.08)';
-                statusEl.style.borderLeftColor = '#ff9800';
-                return;
-            }
-            if (now < start) {
-                statusEl.innerHTML = '<i class="fas fa-clock"></i> <span style="color:#2196F3;">⏰ La pub démarre le ' + 
-                    start.toLocaleString('fr-FR') + '</span>';
-                statusEl.style.backgroundColor = 'rgba(33, 150, 243, 0.08)';
-                statusEl.style.borderLeftColor = '#2196F3';
-                return;
-            }
-            if (now > end) {
-                statusEl.innerHTML = '<i class="fas fa-clock"></i> <span style="color:#ff9800;">⏱️ La pub a terminé le ' + 
-                    end.toLocaleString('fr-FR') + '</span>';
-                statusEl.style.backgroundColor = 'rgba(255, 152, 0, 0.08)';
-                statusEl.style.borderLeftColor = '#ff9800';
-                return;
-            }
-            statusEl.innerHTML = '<i class="fas fa-check-circle"></i> <span style="color:var(--accent); font-weight: 700;">✅ ACTIVE sur TOUS les players maintenant !</span>';
-            statusEl.style.backgroundColor = 'rgba(29, 185, 84, 0.12)';
-            statusEl.style.borderLeftColor = 'var(--accent)';
+            if (!start || !end || start > end) return 'invalid';
+            if (now < start) return 'pending';
+            if (now > end) return 'expired';
+            return 'active';
         }
 
+        function getStatusBadge(status) {
+            const badges = {
+                'inactive': '<span style="background: rgba(233,20,41,0.15); color: var(--danger); padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;"><i class="fas fa-times-circle" style="margin-right:4px;"></i>Inactif</span>',
+                'invalid': '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;"><i class="fas fa-exclamation-triangle" style="margin-right:4px;"></i>Invalide</span>',
+                'pending': '<span style="background: rgba(33,150,243,0.15); color: #2196F3; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;"><i class="fas fa-clock" style="margin-right:4px;"></i>À venir</span>',
+                'expired': '<span style="background: rgba(255,152,0,0.15); color: #ff9800; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;"><i class="fas fa-hourglass-end" style="margin-right:4px;"></i>Terminée</span>',
+                'active': '<span style="background: rgba(29,185,84,0.15); color: var(--accent); padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 700;"><i class="fas fa-check-circle" style="margin-right:4px;"></i>ACTIVE</span>'
+            };
+            return badges[status] || '—';
+        }
+
+        // ─── Modal Actions ───────────────────────────────────────
+        function openCreateAdModal() {
+            currentEditingId = null;
+            document.getElementById('modalTitle').textContent = 'Créer une pub';
+            document.getElementById('adTextInput').value = '';
+            document.getElementById('adActiveInput').checked = false;
+            document.getElementById('adStartInput').value = '';
+            document.getElementById('adEndInput').value = '';
+            document.getElementById('adModal').style.display = 'flex';
+        }
+
+        function editAd(adId) {
+            const ad = allAds.find(a => a.id === adId);
+            if (!ad) return;
+
+            currentEditingId = adId;
+            document.getElementById('modalTitle').textContent = 'Éditer la pub';
+            document.getElementById('adTextInput').value = ad.text || '';
+            document.getElementById('adActiveInput').checked = ad.active || false;
+            document.getElementById('adStartInput').value = ad.start_time ? 
+                new Date(ad.start_time).toISOString().slice(0, 16) : '';
+            document.getElementById('adEndInput').value = ad.end_time ? 
+                new Date(ad.end_time).toISOString().slice(0, 16) : '';
+            document.getElementById('adModal').style.display = 'flex';
+        }
+
+        function closeAdModal() {
+            document.getElementById('adModal').style.display = 'none';
+            currentEditingId = null;
+        }
+
+        // ─── Save Ad ────────────────────────────────────────────
         async function saveAd() {
-            var btn = document.getElementById('saveAdBtn');
-            var origText = btn.innerHTML;
+            const btn = event.target;
+            const origHTML = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
 
-            var data = {
-                text: document.getElementById('adText').value,
-                active: document.getElementById('adActive').checked,
-                start_time: document.getElementById('adStart').value || null,
-                end_time: document.getElementById('adEnd').value || null
+            const data = {
+                text: document.getElementById('adTextInput').value.trim(),
+                active: document.getElementById('adActiveInput').checked,
+                start_time: document.getElementById('adStartInput').value || null,
+                end_time: document.getElementById('adEndInput').value || null
             };
 
             try {
-                var resp = await fetch('/api/admin/ads', {
-                    method: 'POST',
-                    headers: {'Content-Type': 'application/json', 'X-CSRF-Token': csrfToken},
+                let method = 'POST';
+                let url = '/api/admin/ads';
+                if (currentEditingId !== null) {
+                    method = 'PUT';
+                    url = `/api/admin/ads/${currentEditingId}`;
+                }
+
+                const resp = await fetch(url, {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
                     body: JSON.stringify(data)
                 });
-                var result = await resp.json();
+
                 if (resp.ok) {
-                    currentAd = result;
-                    updateStatus();
-                    showToast('✅ Pub enregistrée !');
+                    showToast(currentEditingId ? '✅ Pub mise à jour !' : '✅ Pub créée !');
+                    closeAdModal();
+                    loadAds();
                 } else {
-                    throw new Error(result.error || 'Erreur');
+                    const err = await resp.json();
+                    throw new Error(err.error || 'Erreur');
                 }
-            } catch(e) {
+            } catch (e) {
                 showToast('❌ Erreur: ' + e.message, 'error');
             } finally {
                 btn.disabled = false;
-                btn.innerHTML = origText;
+                btn.innerHTML = origHTML;
             }
         }
 
-        function showToast(msg, type='success') {
-            var toast = document.createElement('div');
+        // ─── Delete Ad ───────────────────────────────────────────
+        async function deleteAd(adId) {
+            if (!confirm('Supprimer cette pub ?')) return;
+
+            try {
+                const resp = await fetch(`/api/admin/ads/${adId}`, {
+                    method: 'DELETE',
+                    headers: {'X-CSRF-Token': csrfToken}
+                });
+
+                if (resp.ok || resp.status === 204) {
+                    showToast('✅ Pub supprimée !');
+                    loadAds();
+                } else {
+                    throw new Error('Erreur lors de la suppression');
+                }
+            } catch (e) {
+                showToast('❌ Erreur: ' + e.message, 'error');
+            }
+        }
+
+        // ─── Toast ──────────────────────────────────────────────
+        function showToast(msg, type = 'success') {
+            const toast = document.createElement('div');
+            const icon = type === 'error' ? 'fa-times-circle' : 'fa-check-circle';
             toast.className = `toast toast-${type}`;
-            
-            // Parse icon from message or use default
-            var icon = 'fa-check-circle';
-            if (type === 'error') icon = 'fa-times-circle';
-            else if (type === 'info') icon = 'fa-info-circle';
-            
             toast.innerHTML = `<i class="fas ${icon}"></i><span>${msg}</span>`;
-            
-            // Create container if not exists
-            var container = document.querySelector('.toast-container');
+
+            let container = document.querySelector('.toast-container');
             if (!container) {
                 container = document.createElement('div');
                 container.className = 'toast-container';
                 document.body.appendChild(container);
             }
-            
+
             container.appendChild(toast);
-            
-            // Trigger animation
             setTimeout(() => toast.classList.add('show'), 10);
             setTimeout(() => {
                 toast.classList.remove('show');
@@ -212,13 +327,18 @@
             }, 4000);
         }
 
-        // events
-        document.getElementById('adActive').addEventListener('change', updateStatus);
-        document.getElementById('adStart').addEventListener('change', updateStatus);
-        document.getElementById('adEnd').addEventListener('change', updateStatus);
+        // ─── Init ───────────────────────────────────────────────
+        document.addEventListener('DOMContentLoaded', loadAds);
 
-        // init
-        document.addEventListener('DOMContentLoaded', loadAd);
+        // Close modal on Esc
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') closeAdModal();
+        });
+
+        // Close modal on background click
+        document.getElementById('adModal').addEventListener('click', (e) => {
+            if (e.target.id === 'adModal') closeAdModal();
+        });
     </script>
 </body>
 </html>

@@ -948,24 +948,54 @@ def analytics_overview():
         s.close()
 
 
-# Global ads API
+# Global ads API (CRUD)
 @api_admin_bp.route('/admin/ads', methods=['GET', 'POST'])
 @admin_required
 @csrf_protected
 def manage_ads():
+    """GET: liste toutes les pubs | POST: crée une nouvelle pub"""
     if request.method == 'GET':
-        from database.db_utils import upsert_ad
-        ad = upsert_ad({})
+        from database.db_utils import get_all_ads
+        ads = get_all_ads()
+        return jsonify({'ads': ads})
+    
+    # POST
+    data = request.get_json() or {}
+    from database.db_utils import create_ad
+    result = create_ad(data)
+    return jsonify(result), 201
+
+
+@api_admin_bp.route('/admin/ads/<int:ad_id>', methods=['GET', 'PUT', 'DELETE'])
+@admin_required
+@csrf_protected
+def manage_ad_detail(ad_id):
+    """GET: récupère une pub | PUT: met à jour | DELETE: supprime"""
+    from database.db_utils import get_all_ads, update_ad, delete_ad
+    
+    if request.method == 'GET':
+        ads = get_all_ads()
+        ad = next((a for a in ads if a['id'] == ad_id), None)
+        if not ad:
+            return jsonify({'error': 'Ad not found'}), 404
         return jsonify(ad)
     
-    data = request.get_json() or {}
-    from database.db_utils import upsert_ad
-    result = upsert_ad(data)
-    return jsonify(result)
+    if request.method == 'PUT':
+        data = request.get_json() or {}
+        result = update_ad(ad_id, data)
+        if not result:
+            return jsonify({'error': 'Ad not found'}), 404
+        return jsonify(result)
+    
+    if request.method == 'DELETE':
+        if delete_ad(ad_id):
+            return jsonify({'status': 'deleted'}), 204
+        return jsonify({'error': 'Ad not found'}), 404
 
 
 @api_admin_bp.route('/ads/active')
 def get_active_ad_api():
+    """Récupère la pub ACTIVE (sans authentification, pour le player)"""
     from database.db_utils import get_active_ad
     ad = get_active_ad()
     return jsonify(ad or {})
