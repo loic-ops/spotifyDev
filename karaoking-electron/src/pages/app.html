@@ -1126,7 +1126,16 @@
             document.getElementById('vpBannerText').textContent = currentSong.banner_text;
             banner.style.display = '';
         } else {
-            banner.style.display = 'none';
+            // Fetch global ad
+            fetch('/api/ads/active')
+                .then(r => r.json())
+                .then(data => {
+                    if (data.active && data.text) {
+                        document.getElementById('vpBannerText').textContent = data.text;
+                        banner.style.display = '';
+                    }
+                })
+                .catch(() => {});
         }
     }
 
