@@ -25,7 +25,12 @@ def list_songs():
 
         s = get_session()
         try:
-            q = s.query(Song).order_by(Song.created_at.desc())
+            q = s.query(Song.id, Song.title, Song.original_file, Song.instrumental_file,
+                        Song.vocals_file, Song.lyrics_file, Song.created_at, Song.status,
+                        Song.source, Song.source_url, Song.artist_id, Song.genre_id,
+                        Song.language, Song.album, Song.cover_path, Song.published_at,
+                        Song.soft_disabled, Song.plays_count, Song.likes_count, Song.duration_sec,
+                        Song.id3_raw, Song.banner_text, Song.created_by).order_by(Song.created_at.desc())
             if genre_id:
                 q = q.filter(Song.genre_id == genre_id)
             if artist_id:
@@ -87,7 +92,6 @@ def list_songs():
                 'genre_id': song.genre_id, 'artist_id': song.artist_id,
                 'has_cover': has_cover, 'has_lyrics': has_lyrics,
                 'has_instrumental': has_instr, 'has_vocals': has_vocals,
-                'banner_text': song.banner_text or None,
             })
 
         return jsonify(result)
