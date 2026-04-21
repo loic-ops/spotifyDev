@@ -87,6 +87,7 @@ def list_songs():
             result.append({
                 'id': song.id, 'title': title, 'artist': artist,
                 'original_file': song.original_file,
+                'banner_text': song.banner_text,
                 'status': song.status or 'uploaded',
                 'duration': duration, 'lyrics_offset': lyrics_offset,
                 'genre_id': song.genre_id, 'artist_id': song.artist_id,

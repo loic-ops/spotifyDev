@@ -4,7 +4,7 @@ services:
     build: .
     container_name: karaoke_app
     ports:
-      - "5001:5000"
+      - "0.0.0.0:5001:5000"
     volumes:
       - uploads_data:/app/static/uploads
       - processed_data:/app/static/processed
