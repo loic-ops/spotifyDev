@@ -98,7 +98,9 @@ services:
     volumes:
       - mysql_data:/var/lib/mysql
     ports:
-      - "127.0.0.1:3306:3306"
+      # 3306 est souvent déjà pris (MySQL local). On expose donc en 3307 côté host.
+      # À l'intérieur du réseau Docker, le service reste sur mysql:3306 (inchangé).
+      - "127.0.0.1:3307:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
