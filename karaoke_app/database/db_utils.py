@@ -256,17 +256,17 @@ def get_all_ads():
 def get_active_ad():
     """Récupère la pub actuellement ACTIVE (une seule parmi toutes)"""
     from database.models.admin import Ad
-    from datetime import datetime
+    from sqlalchemy import func
     s = get_session()
     try:
-        now = datetime.utcnow()
-        # Tolérant: si start/end sont NULL, on considère la pub active "tout le temps".
+        # Comparaison côté MySQL en UTC pour éviter les problèmes de timezone.
+        # Tolérant: si start/end sont NULL, la pub est active "tout le temps".
         # On priorise les pubs les plus récemment mises à jour / créées.
         ad = (
             s.query(Ad)
             .filter(Ad.active == True)
-            .filter((Ad.start_time.is_(None)) | (Ad.start_time <= now))
-            .filter((Ad.end_time.is_(None)) | (Ad.end_time >= now))
+            .filter((Ad.start_time.is_(None)) | (Ad.start_time <= func.utc_timestamp()))
+            .filter((Ad.end_time.is_(None)) | (Ad.end_time >= func.utc_timestamp()))
             .order_by(Ad.updated_at.desc(), Ad.id.desc())
             .first()
         )
@@ -287,7 +287,7 @@ def get_active_ad():
 def create_ad(data):
     """Crée une nouvelle pub"""
     from database.models.admin import Ad
-    from datetime import datetime
+    from datetime import datetime, timezone
     s = get_session()
     try:
         def _parse_dt(val):
@@ -299,7 +299,11 @@ def create_ad(data):
                 if v.endswith('Z'):
                     v = v[:-1] + '+00:00'
                 try:
-                    return datetime.fromisoformat(v)
+                    dt = datetime.fromisoformat(v)
+                    # MySQL DATETIME ne stocke pas de timezone → on normalise en UTC naïf.
+                    if dt.tzinfo is not None:
+                        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                    return dt
                 except Exception:
                     return None
             return None
@@ -331,7 +335,7 @@ def create_ad(data):
 def update_ad(ad_id, data):
     """Met à jour une pub existante"""
     from database.models.admin import Ad
-    from datetime import datetime
+    from datetime import datetime, timezone
     s = get_session()
     try:
         def _parse_dt(val):
@@ -342,7 +346,10 @@ def update_ad(ad_id, data):
                 if v.endswith('Z'):
                     v = v[:-1] + '+00:00'
                 try:
-                    return datetime.fromisoformat(v)
+                    dt = datetime.fromisoformat(v)
+                    if dt.tzinfo is not None:
+                        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+                    return dt
                 except Exception:
                     return None
             return None
