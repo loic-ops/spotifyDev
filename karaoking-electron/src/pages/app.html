@@ -1122,8 +1122,20 @@
 
         // Bandeau pub/annonce
         const banner = document.getElementById('vpBanner');
-        if (currentSong.banner_text) {
-            document.getElementById('vpBannerText').textContent = currentSong.banner_text;
+        let bannerText = (currentSong.banner_text || '').trim();
+
+        // Priorité à la pub globale "active" (admin/ads → /api/ads/active)
+        try {
+            const ad = await window.karaoking.fetchApi('/api/ads/active');
+            if (ad && typeof ad.text === 'string' && ad.text.trim()) {
+                bannerText = ad.text.trim();
+            }
+        } catch (e) {
+            // ignore: pas de pub globale ou serveur non dispo
+        }
+
+        if (bannerText) {
+            document.getElementById('vpBannerText').textContent = bannerText;
             banner.style.display = '';
         } else {
             // Fetch global ad

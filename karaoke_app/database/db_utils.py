@@ -5,11 +5,12 @@ from sqlalchemy.orm import sessionmaker
 from datetime import datetime
 from config import DATABASE_URI
 
+
 engine = create_engine(DATABASE_URI, pool_pre_ping=True)
 Base = declarative_base()
 Session = sessionmaker(bind=engine)
 
-
+ 
 class Processing(Base):
     # legacy, sera remplace par jobs
     __tablename__ = 'processing'
@@ -259,13 +260,25 @@ def get_active_ad():
     s = get_session()
     try:
         now = datetime.utcnow()
-        ad = s.query(Ad).filter(
-            Ad.active == True,
-            Ad.start_time <= now,
-            Ad.end_time >= now
-        ).first()
+        # Tolérant: si start/end sont NULL, on considère la pub active "tout le temps".
+        # On priorise les pubs les plus récemment mises à jour / créées.
+        ad = (
+            s.query(Ad)
+            .filter(Ad.active == True)
+            .filter((Ad.start_time.is_(None)) | (Ad.start_time <= now))
+            .filter((Ad.end_time.is_(None)) | (Ad.end_time >= now))
+            .order_by(Ad.updated_at.desc(), Ad.id.desc())
+            .first()
+        )
         if ad:
-            return {'id': ad.id, 'text': ad.text, 'active': True}
+            return {
+                'id': ad.id,
+                'text': ad.text,
+                'active': True,
+                'start_time': ad.start_time.isoformat() if ad.start_time else None,
+                'end_time': ad.end_time.isoformat() if ad.end_time else None,
+                'updated_at': ad.updated_at.isoformat() if ad.updated_at else None,
+            }
         return None
     finally:
         s.close()
@@ -277,11 +290,30 @@ def create_ad(data):
     from datetime import datetime
     s = get_session()
     try:
+        def _parse_dt(val):
+            if not val:
+                return None
+            # Supporte ISO avec 'Z' (UTC) ou offsets.
+            if isinstance(val, str):
+                v = val.strip()
+                if v.endswith('Z'):
+                    v = v[:-1] + '+00:00'
+                try:
+                    return datetime.fromisoformat(v)
+                except Exception:
+                    return None
+            return None
+
         ad = Ad()
         ad.text = data.get('text', '').strip()[:500]
         ad.active = bool(data.get('active', False))
-        ad.start_time = datetime.fromisoformat(data.get('start_time')) if data.get('start_time') else None
-        ad.end_time = datetime.fromisoformat(data.get('end_time')) if data.get('end_time') else None
+        ad.start_time = _parse_dt(data.get('start_time'))
+        ad.end_time = _parse_dt(data.get('end_time'))
+
+        # Enforce: une seule pub active à la fois.
+        if ad.active:
+            s.query(Ad).filter(Ad.active == True).update({'active': False})
+
         s.add(ad)
         s.commit()
         return {
@@ -302,16 +334,35 @@ def update_ad(ad_id, data):
     from datetime import datetime
     s = get_session()
     try:
+        def _parse_dt(val):
+            if not val:
+                return None
+            if isinstance(val, str):
+                v = val.strip()
+                if v.endswith('Z'):
+                    v = v[:-1] + '+00:00'
+                try:
+                    return datetime.fromisoformat(v)
+                except Exception:
+                    return None
+            return None
+
         ad = s.query(Ad).filter_by(id=ad_id).first()
         if not ad:
             return None
         
         ad.text = data.get('text', ad.text).strip()[:500]
-        ad.active = bool(data.get('active', ad.active))
-        if data.get('start_time'):
-            ad.start_time = datetime.fromisoformat(data.get('start_time'))
-        if data.get('end_time'):
-            ad.end_time = datetime.fromisoformat(data.get('end_time'))
+        new_active = bool(data.get('active', ad.active))
+        ad.active = new_active
+
+        if 'start_time' in data:
+            ad.start_time = _parse_dt(data.get('start_time'))
+        if 'end_time' in data:
+            ad.end_time = _parse_dt(data.get('end_time'))
+
+        if new_active:
+            # désactive toutes les autres
+            s.query(Ad).filter(Ad.id != ad_id, Ad.active == True).update({'active': False})
         
         s.commit()
         return {

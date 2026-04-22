@@ -244,11 +244,19 @@
             btn.disabled = true;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enregistrement...';
 
+            function toIsoOrNull(datetimeLocalValue) {
+                if (!datetimeLocalValue) return null;
+                // datetime-local est "local time" sans timezone → on convertit en ISO UTC.
+                const d = new Date(datetimeLocalValue);
+                if (isNaN(d.getTime())) return null;
+                return d.toISOString();
+            }
+
             const data = {
                 text: document.getElementById('adTextInput').value.trim(),
                 active: document.getElementById('adActiveInput').checked,
-                start_time: document.getElementById('adStartInput').value || null,
-                end_time: document.getElementById('adEndInput').value || null
+                start_time: toIsoOrNull(document.getElementById('adStartInput').value),
+                end_time: toIsoOrNull(document.getElementById('adEndInput').value)
             };
 
             try {

@@ -16,89 +16,104 @@ api_public_bp = Blueprint('api_public', __name__)
 
 @api_public_bp.route('/api/songs', methods=['GET'])
 def list_songs():
+    log.info("Fetching songs...")
+    result = []
+
+    from database.db_utils import get_session
+    from database.models.song import Song
+
+    genre_id = request.args.get('genre_id', type=int)
+    artist_id = request.args.get('artist_id', type=int)
+
+    s = get_session()
     try:
-        from database.db_utils import get_session
-        from database.models.song import Song
+        q = s.query(
+            Song.id, Song.title, Song.original_file, Song.instrumental_file,
+            Song.vocals_file, Song.lyrics_file, Song.created_at, Song.status,
+            Song.source, Song.source_url, Song.artist_id, Song.genre_id,
+            Song.language, Song.album, Song.cover_path, Song.published_at,
+            Song.soft_disabled, Song.plays_count, Song.likes_count, Song.duration_sec,
+            Song.id3_raw, Song.banner_text, Song.created_by
+        ).order_by(Song.created_at.desc())
+        if genre_id:
+            q = q.filter(Song.genre_id == genre_id)
+        if artist_id:
+            q = q.filter(Song.artist_id == artist_id)
+        db_songs = q.all()
+        log.info(f"Found {len(db_songs)} songs in DB")
+    finally:
+        s.close()
 
-        genre_id = request.args.get('genre_id', type=int)
-        artist_id = request.args.get('artist_id', type=int)
-
-        s = get_session()
+    # Pré-charger les noms d'artistes pour les songs avec artist_id
+    artist_ids = {x.artist_id for x in db_songs if getattr(x, 'artist_id', None)}
+    artist_names = {}
+    if artist_ids:
+        from database.models.artist import Artist
+        s2 = get_session()
         try:
-            q = s.query(Song.id, Song.title, Song.original_file, Song.instrumental_file,
-                        Song.vocals_file, Song.lyrics_file, Song.created_at, Song.status,
-                        Song.source, Song.source_url, Song.artist_id, Song.genre_id,
-                        Song.language, Song.album, Song.cover_path, Song.published_at,
-                        Song.soft_disabled, Song.plays_count, Song.likes_count, Song.duration_sec,
-                        Song.id3_raw, Song.banner_text, Song.created_by).order_by(Song.created_at.desc())
-            if genre_id:
-                q = q.filter(Song.genre_id == genre_id)
-            if artist_id:
-                q = q.filter(Song.artist_id == artist_id)
-            db_songs = q.all()
+            for a in s2.query(Artist).filter(Artist.id.in_(artist_ids)).all():
+                artist_names[a.id] = a.name
         finally:
-            s.close()
+            s2.close()
 
-        # Pré-charger les noms d'artistes pour les songs avec artist_id
-        artist_ids = {s.artist_id for s in db_songs if s.artist_id}
-        artist_names = {}
-        if artist_ids:
-            from database.models.artist import Artist
-            s2 = get_session()
-            try:
-                for a in s2.query(Artist).filter(Artist.id.in_(artist_ids)).all():
-                    artist_names[a.id] = a.name
-            finally:
-                s2.close()
+    def safe_exists(path):
+        try:
+            return os.path.exists(path)
+        except (OSError, ValueError):
+            return False
 
-        result = []
-        for song in db_songs:
-            song_dir = os.path.join(current_app.config['PROCESSED_FOLDER'], song.id)
+    for song in db_songs:
+        try:
+            song_dir = os.path.join(current_app.config['PROCESSED_FOLDER'], str(song.id))
 
-            title = song.title
+            title = song.title or 'Unknown Title'
             artist = artist_names.get(song.artist_id, 'Unknown Artist')
-            duration = song.duration_sec or 0
+            duration = getattr(song, 'duration_sec', 0) or 0
             lyrics_offset = 0
-            meta_path = os.path.join(song_dir, 'meta.json')
-            if os.path.exists(meta_path):
-                try:
-                    with open(meta_path, 'r') as f:
-                        meta = json.loads(decrypt_data(f.read()))
-                        artist = meta.get('artist', artist)
-                        title = meta.get('title', title)
-                        duration = meta.get('duration', duration)
-                        lyrics_offset = meta.get('lyrics_offset', 0)
-                except Exception:
-                    pass
 
-            has_cover = any(
-                os.path.exists(os.path.join(song_dir, f'cover{ext}'))
-                for ext in ['.jpg', '.jpeg', '.png', '.webp']
-            )
-            has_lyrics = (
-                os.path.exists(os.path.join(song_dir, 'lyrics.lrc')) or
-                os.path.exists(os.path.join(song_dir, 'lyrics.srt'))
-            )
-            has_instr = any(os.path.exists(os.path.join(song_dir, f'instrumental{e}'))
-                           for e in ['.wav', '.mp3'])
-            has_vocals = any(os.path.exists(os.path.join(song_dir, f'vocals{e}'))
-                            for e in ['.wav', '.mp3'])
+            # Safe meta load
+            meta_path = os.path.join(song_dir, 'meta.json')
+            try:
+                if safe_exists(meta_path):
+                    with open(meta_path, 'r', encoding='utf-8') as f:
+                        content = f.read().strip()
+                        if content:
+                            meta = json.loads(decrypt_data(content))
+                            artist = meta.get('artist', artist) or artist
+                            title = meta.get('title', title) or title
+                            duration = meta.get('duration', duration) or duration
+                            lyrics_offset = meta.get('lyrics_offset', 0) or 0
+            except (json.JSONDecodeError, ValueError, OSError) as meta_err:
+                log.warning(f"Meta load failed for {song.id}: {meta_err}")
+
+            has_cover = any(safe_exists(os.path.join(song_dir, f'cover{ext}')) for ext in ['.jpg', '.jpeg', '.png', '.webp'])
+            has_lyrics = safe_exists(os.path.join(song_dir, 'lyrics.lrc')) or safe_exists(os.path.join(song_dir, 'lyrics.srt'))
+            has_instr = any(safe_exists(os.path.join(song_dir, f'instrumental{ext}')) for ext in ['.wav', '.mp3'])
+            has_vocals = any(safe_exists(os.path.join(song_dir, f'vocals{ext}')) for ext in ['.wav', '.mp3'])
 
             result.append({
-                'id': song.id, 'title': title, 'artist': artist,
-                'original_file': song.original_file,
-                'banner_text': song.banner_text,
-                'status': song.status or 'uploaded',
-                'duration': duration, 'lyrics_offset': lyrics_offset,
-                'genre_id': song.genre_id, 'artist_id': song.artist_id,
-                'has_cover': has_cover, 'has_lyrics': has_lyrics,
-                'has_instrumental': has_instr, 'has_vocals': has_vocals,
+                'id': str(song.id),
+                'title': title,
+                'artist': artist,
+                'original_file': getattr(song, 'original_file', ''),
+                'banner_text': getattr(song, 'banner_text', None),
+                'status': getattr(song, 'status', 'uploaded'),
+                'duration': duration,
+                'lyrics_offset': lyrics_offset,
+                'genre_id': getattr(song, 'genre_id', None),
+                'artist_id': getattr(song, 'artist_id', None),
+                'has_cover': has_cover,
+                'has_lyrics': has_lyrics,
+                'has_instrumental': has_instr,
+                'has_vocals': has_vocals,
             })
+        except Exception as song_err:
+            log.warning(f"Skipping song {song.id}: {song_err}")
+            continue
 
-        return jsonify(result)
-    except Exception as e:
-        log.error(f"list_songs error: {e}")
-        return jsonify({'error': 'Failed to load songs'}), 500
+    log.info(f"Returning {len(result)} songs")
+    return jsonify(result)
+
 
 
 @api_public_bp.route('/api/audio/<song_id>/<track_type>')
