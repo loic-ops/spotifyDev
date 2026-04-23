@@ -291,7 +291,7 @@ def run_yt_download(job_id, song_id, payload):
             '--no-playlist',
             '--', yt_url
         ]
-        res = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        res = subprocess.run(cmd, capture_output=True, text=True, timeout=600)
 
         if res.returncode != 0:
             return _fail_job(job_id, f"yt-dlp failed: {res.stderr[:2000]}")
