@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.4
 FROM python:3.10-slim
 
 WORKDIR /app
@@ -11,57 +12,33 @@ ENV OPENBLAS_NUM_THREADS=8
 ENV MKL_NUM_THREADS=8
 ENV OMP_NUM_THREADS=8
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
+# Runtime system deps only — ffmpeg binary for audio, libsndfile for soundfile.
+# PyAV ships pre-built wheels so we no longer need the libav*-dev headers
+# or gcc/pkg-config.
+RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     libsndfile1 \
-    gcc \
-    gosu \
-    pkg-config \
-    libavformat-dev \
-    libavcodec-dev \
-    libavdevice-dev \
-    libavutil-dev \
-    libavfilter-dev \
-    libswscale-dev \
-    libswresample-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create non-root user early — this layer never changes, so it stays cached.
-RUN groupadd -r karaoke && useradd -r -g karaoke -d /app -s /sbin/nologin karaoke
-
-# Install build tools (setuptools needed by openai-whisper build)
-RUN pip install --no-cache-dir --upgrade pip "setuptools<70" wheel
-
-# Copy requirements file alone — only invalidates the pip layer when
-# requirements actually change.
+# Copy requirements alone — only invalidates the pip layer when it changes.
 COPY requirements.txt .
 
-# All Python deps in ONE layer:
-# - openai-whisper first with --no-build-isolation (needs setuptools at build time)
-# - PyAV separately (needs ffmpeg dev headers, installed above)
-# - then the rest of requirements.txt
-# - then yt-dlp
-RUN pip install --no-cache-dir --no-build-isolation openai-whisper==20231117 \
- && pip install --no-cache-dir "av>=12.0.0" \
- && pip install --no-cache-dir -r requirements.txt \
- && pip install --no-cache-dir yt-dlp
+# Install Python deps in ONE layer with BuildKit pip cache mount.
+# Torch from the CPU-only index saves ~1.5GB vs the default CUDA wheels.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --upgrade pip \
+ && pip install --index-url https://download.pytorch.org/whl/cpu \
+        "torch>=2.0.0,<2.2" "torchaudio>=2.0.0,<2.2" \
+ && pip install -r requirements.txt \
+ && pip install yt-dlp
 
 # Copy application code (this is the layer that changes most often)
 COPY . .
 
-# Create necessary directories with proper ownership
-RUN mkdir -p static/uploads static/processed data \
-    && chown -R karaoke:karaoke /app \
-    && chmod +x entrypoint.sh
-
-# NOTE: stay as root here. The entrypoint chowns volume mounts
-# (which are owned by root by default) and then drops privileges to
-# 'karaoke' via gosu before exec'ing gunicorn.
+# Create runtime directories
+RUN mkdir -p static/uploads static/processed data
 
 EXPOSE 5000
-
-ENTRYPOINT ["./entrypoint.sh"]
 
 # Production: Gunicorn with 1 worker — Demucs/Whisper are CPU-bound and each
 # worker would load its own copy of the models. 1 worker gives the best

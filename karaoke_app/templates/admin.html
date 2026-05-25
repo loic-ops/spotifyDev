@@ -34,6 +34,11 @@
                 <a href="/admin/alerts" class="nav-item">
                     <i class="fas fa-bell"></i> Alertes
                 </a>
+                {% if current_admin_role == 'superadmin' %}
+                <a href="/admin/users" class="nav-item">
+                    <i class="fas fa-users-cog"></i> Gestion utilisateurs
+                </a>
+                {% endif %}
                 <a href="#" class="nav-item" onclick="openChangePwdModal(); return false;">
                     <i class="fas fa-key"></i> Mot de passe
                 </a>

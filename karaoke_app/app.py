@@ -29,6 +29,12 @@ os.makedirs(app.config['PROCESSED_FOLDER'], exist_ok=True)
 app.jinja_env.globals['csrf_token'] = generate_csrf_token
 
 
+@app.context_processor
+def inject_admin_role():
+    # expose le role admin courant a tous les templates (None si non connecte)
+    return {'current_admin_role': session.get('admin_role')}
+
+
 # db init
 def wait_for_database(max_retries=30, delay=2):
     from sqlalchemy import create_engine

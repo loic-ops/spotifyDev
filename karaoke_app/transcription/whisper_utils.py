@@ -1,18 +1,11 @@
-# transcription audio via faster-whisper (fallback openai-whisper)
+# transcription audio via faster-whisper (CTranslate2)
 import warnings
 warnings.filterwarnings('ignore')
 
 import logging
-log = logging.getLogger('karaoking')
+from faster_whisper import WhisperModel
 
-_USE_FASTER = False
-try:
-    from faster_whisper import WhisperModel
-    _USE_FASTER = True
-    log.info("[whisper] Using faster-whisper (CTranslate2)")
-except ImportError:
-    import whisper
-    log.info("[whisper] Using openai-whisper (fallback)")
+log = logging.getLogger('karaoking')
 
 _model = None
 _model_name = None
@@ -23,14 +16,8 @@ def get_model(name='base'):
     if _model is not None and _model_name == name:
         return _model
 
-    print(f"[whisper] Loading model: {name} ({'faster-whisper' if _USE_FASTER else 'openai-whisper'})")
-
-    if _USE_FASTER:
-        _model = WhisperModel(name, device="cpu", compute_type="int8")
-    else:
-        import whisper
-        _model = whisper.load_model(name)
-
+    print(f"[whisper] Loading model: {name} (faster-whisper)")
+    _model = WhisperModel(name, device="cpu", compute_type="int8")
     _model_name = name
     return _model
 
@@ -39,21 +26,14 @@ def transcribe_audio(audio_path, model_name='base', language=None):
     mdl = get_model(model_name)
     print(f"[whisper] Transcribing: {audio_path}")
 
-    if _USE_FASTER:
-        return _transcribe_faster(mdl, audio_path, language)
-    else:
-        return _transcribe_openai(mdl, audio_path, language)
-
-
-def _transcribe_faster(mdl, audio_path, lang):
     kw = {
         'beam_size': 5,
         'word_timestamps': True,
         'vad_filter': True,
         'vad_parameters': dict(min_silence_duration_ms=500),
     }
-    if lang:
-        kw['language'] = lang
+    if language:
+        kw['language'] = language
 
     segs_iter, info = mdl.transcribe(audio_path, **kw)
     segs = list(segs_iter)
@@ -70,25 +50,6 @@ def _transcribe_faster(mdl, audio_path, lang):
         })
 
     print(f"[whisper] Transcription complete: {len(out['text'])} chars, {len(out['segments'])} segments")
-    return out
-
-
-def _transcribe_openai(mdl, audio_path, lang):
-    kw = {'word_timestamps': True, 'verbose': False}
-    if lang:
-        kw['language'] = lang
-
-    result = mdl.transcribe(audio_path, **kw)
-
-    out = {'text': result['text'].strip(), 'segments': []}
-    for seg in result['segments']:
-        out['segments'].append({
-            'start': seg['start'], 'end': seg['end'],
-            'text': seg['text'].strip(),
-            'words': seg.get('words', [])
-        })
-
-    print(f"[whisper] Transcription complete: {len(out['text'])} characters")
     return out
 
 

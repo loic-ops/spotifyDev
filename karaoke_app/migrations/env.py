@@ -15,8 +15,8 @@ from database.models import *  # noqa — register all models on Base.metadata
 # Alembic Config object
 config = context.config
 
-# Setup loggers
-if config.config_file_name is not None:
+# Setup loggers (skip si alembic.ini n'a pas les sections logging)
+if config.config_file_name is not None and config.get_section('loggers'):
     fileConfig(config.config_file_name)
 
 # Override sqlalchemy.url from app config (not hardcoded)

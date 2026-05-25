@@ -185,7 +185,7 @@ def get_admin_by_id(admin_id):
     try:
         adm = s.query(Admin).filter_by(id=admin_id).first()
         if adm:
-            return {'id': adm.id, 'username': adm.username}
+            return {'id': adm.id, 'username': adm.username, 'role': adm.role}
         return None
     finally:
         s.close()
@@ -197,7 +197,7 @@ def get_admin_by_username(username):
     try:
         adm = s.query(Admin).filter_by(username=username).first()
         if adm:
-            return {'id': adm.id, 'username': adm.username}
+            return {'id': adm.id, 'username': adm.username, 'role': adm.role}
         return None
     finally:
         s.close()
@@ -227,6 +227,79 @@ def change_admin_password(admin_id, current_password, new_password):
         adm.change_password(new_password)
         s.commit()
         return True
+    finally:
+        s.close()
+
+
+# superadmin: gestion des comptes admin (reserve au role 'superadmin')
+
+def list_admins():
+    _, Admin = _get_models()
+    s = get_session()
+    try:
+        admins = s.query(Admin).order_by(Admin.id.asc()).all()
+        return [
+            {
+                'id': a.id,
+                'username': a.username,
+                'role': a.role,
+                'created_at': a.created_at.isoformat() if a.created_at else None,
+                'last_login_at': a.last_login_at.isoformat() if a.last_login_at else None,
+            }
+            for a in admins
+        ]
+    finally:
+        s.close()
+
+
+def superadmin_reset_password(target_admin_id, new_password):
+    _, Admin = _get_models()
+    s = get_session()
+    try:
+        adm = s.query(Admin).filter_by(id=target_admin_id).first()
+        if not adm:
+            return False
+        adm.set_password(new_password)
+        s.commit()
+        return True
+    finally:
+        s.close()
+
+
+def superadmin_create_admin(username, password, role='admin'):
+    if role not in ('admin', 'superadmin'):
+        return None
+    _, Admin = _get_models()
+    s = get_session()
+    try:
+        if s.query(Admin).filter_by(username=username).first():
+            return None
+        adm = Admin(username=username, role=role)
+        adm.set_password(password)
+        s.add(adm)
+        s.commit()
+        return adm.id
+    finally:
+        s.close()
+
+
+def superadmin_delete_admin(target_admin_id):
+    # garde-fou: refuse de supprimer le dernier superadmin restant.
+    _, Admin = _get_models()
+    s = get_session()
+    try:
+        adm = s.query(Admin).filter_by(id=target_admin_id).first()
+        if not adm:
+            return (False, 'introuvable')
+        if adm.role == 'superadmin':
+            remaining = s.query(Admin).filter(
+                Admin.role == 'superadmin', Admin.id != target_admin_id
+            ).count()
+            if remaining == 0:
+                return (False, 'dernier_superadmin')
+        s.delete(adm)
+        s.commit()
+        return (True, None)
     finally:
         s.close()
 

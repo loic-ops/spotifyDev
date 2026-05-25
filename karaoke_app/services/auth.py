@@ -27,6 +27,21 @@ def admin_required(f):
     return decorated
 
 
+def superadmin_required(f):
+    @wraps(f)
+    def decorated(*args, **kwargs):
+        if not session.get('admin_id'):
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'error': 'Authentication required'}), 401
+            return redirect(url_for('admin.login'))
+        if session.get('admin_role') != 'superadmin':
+            if request.is_json or request.path.startswith('/api/'):
+                return jsonify({'error': 'Superadmin required'}), 403
+            abort(403, description="Acces reserve au superadmin")
+        return f(*args, **kwargs)
+    return decorated
+
+
 def csrf_protected(f):
     # verifie csrf sur les endpoints mutants
     @wraps(f)

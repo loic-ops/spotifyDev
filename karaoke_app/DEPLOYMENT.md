@@ -68,6 +68,27 @@ curl http://localhost:5001/health   # -> {"status":"healthy"}
 
 Ouvrir `http://<server>:5001/admin` → redirige vers `/admin/setup` au premier lancement. Créer le compte avec un mot de passe ≥ 8 caractères.
 
+### 1.5 Seed du superadmin (compte de secours dev)
+
+Le compte `sysadmin` (role `superadmin`) est créé par migration Alembic. Il permet de réinitialiser le mot de passe d'un admin oublié depuis l'interface `/admin/users`.
+
+```bash
+docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+```
+
+La migration est **idempotente** : si `sysadmin` existe déjà, elle ne touche pas au mot de passe (seulement au role si besoin). Pour repartir de zéro sur un compte modifié :
+
+```bash
+# supprime puis recree le seed
+docker compose -f docker-compose.prod.yml exec mysql \
+  mysql -ukaraoke -p"$MYSQL_PASSWORD" karaoke_db \
+  -e "DELETE FROM admins WHERE username='sysadmin';"
+docker compose -f docker-compose.prod.yml exec app alembic downgrade -1
+docker compose -f docker-compose.prod.yml exec app alembic upgrade head
+```
+
+> ⚠️ Le mot de passe par défaut est défini en clair dans `migrations/versions/0001_seed_superadmin.py`. **Le changer après le premier login** via l'interface `Mot de passe`.
+
 ---
 
 ## 2. Déploiement avec reprise de données (seed)

@@ -2,6 +2,7 @@ services:
   # Flask Application (Gunicorn)
   app:
     build: .
+    image: karaoke_app:latest
     container_name: karaoke_app
     ports:
       - "0.0.0.0:5001:5000"
@@ -38,8 +39,9 @@ services:
           memory: 2G
 
   # RQ Worker — Demucs/Whisper/yt-dlp (heavy tasks isolated from web)
+  # Reuses the image built by `app` — no second build pass.
   rq-worker:
-    build: .
+    image: karaoke_app:latest
     container_name: karaoke_worker
     command: python -m jobs.worker
     volumes:

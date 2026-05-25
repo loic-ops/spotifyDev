@@ -14,7 +14,7 @@ class Admin(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     # rbac + securite
-    role = Column(String(20), default='admin')  # super_admin | admin | operateur
+    role = Column(String(20), default='admin')
     totp_secret = Column(String(64))
     totp_enabled = Column(Boolean, default=False)
     last_login_at = Column(DateTime)
