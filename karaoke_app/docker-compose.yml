@@ -1,26 +1,27 @@
 services:
-  # Flask Application (Gunicorn)
   app:
     build: .
     image: karaoke_app:latest
     container_name: karaoke_app
     ports:
-      - "0.0.0.0:5001:5000"
+      - "5001:5000"
     volumes:
       - uploads_data:/app/static/uploads
       - processed_data:/app/static/processed
       - app_data:/app/data
       - whisper_cache:/home/karaoke/.cache/whisper
       - torch_cache:/home/karaoke/.cache/torch
-      - ./.env:/app/.env:ro
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
-      - MYSQL_USER=${MYSQL_USER:-karaoke}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-karaoke_password}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-karaoke_db}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - REDIS_URL=redis://redis:6379/0
-      - FLASK_DEBUG=true
+      - FLASK_DEBUG=false
     depends_on:
       mysql:
         condition: service_healthy
@@ -36,10 +37,8 @@ services:
     deploy:
       resources:
         limits:
-          memory: 2G
+          memory: 4G
 
-  # RQ Worker — Demucs/Whisper/yt-dlp (heavy tasks isolated from web)
-  # Reuses the image built by `app` — no second build pass.
   rq-worker:
     image: karaoke_app:latest
     container_name: karaoke_worker
@@ -50,14 +49,16 @@ services:
       - app_data:/app/data
       - whisper_cache:/home/karaoke/.cache/whisper
       - torch_cache:/home/karaoke/.cache/torch
-      - ./.env:/app/.env:ro
     environment:
       - MYSQL_HOST=mysql
       - MYSQL_PORT=3306
-      - MYSQL_USER=${MYSQL_USER:-karaoke}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-karaoke_password}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-karaoke_db}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
       - REDIS_URL=redis://redis:6379/0
+      - FLASK_DEBUG=false
     depends_on:
       mysql:
         condition: service_healthy
@@ -69,12 +70,10 @@ services:
         limits:
           memory: 8G
 
-  # Redis (queue broker for RQ)
   redis:
     image: redis:7-alpine
     container_name: karaoke_redis
-    ports:
-      - "127.0.0.1:6380:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
     volumes:
       - redis_data:/data
     healthcheck:
@@ -86,23 +85,18 @@ services:
     deploy:
       resources:
         limits:
-          memory: 128M
+          memory: 512M
 
-  # MySQL Database
   mysql:
     image: mysql:8.0
     container_name: karaoke_mysql
     environment:
-      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-root_password}
-      - MYSQL_DATABASE=${MYSQL_DATABASE:-karaoke_db}
-      - MYSQL_USER=${MYSQL_USER:-karaoke}
-      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-karaoke_password}
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_DATABASE}
+      - MYSQL_USER=${MYSQL_USER}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD}
     volumes:
       - mysql_data:/var/lib/mysql
-    ports:
-      # 3306 est souvent déjà pris (MySQL local). On expose donc en 3307 côté host.
-      # À l'intérieur du réseau Docker, le service reste sur mysql:3306 (inchangé).
-      - "127.0.0.1:3307:3306"
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 10s
@@ -112,16 +106,16 @@ services:
     deploy:
       resources:
         limits:
-          memory: 512M
+          memory: 1G
 
 volumes:
   mysql_data:
   uploads_data:
   processed_data:
   app_data:
+  redis_data:
   whisper_cache:
   torch_cache:
-  redis_data:
 
 networks:
   default:

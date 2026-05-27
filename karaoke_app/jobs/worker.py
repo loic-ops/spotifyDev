@@ -19,7 +19,7 @@ def main():
     log.info(f"Starting RQ worker, listening on queues: {[q.name for q in queues]}")
     log.info(f"Redis: {REDIS_URL}")
     w = Worker(queues, connection=conn)
-    w.work(with_scheduler=False)
+    w.work(with_scheduler=True)
 
 
 if __name__ == '__main__':

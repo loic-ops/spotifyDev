@@ -1,47 +1,31 @@
-# rate limiting in-memory (TODO: passer sur redis pour multi-worker)
-import time
+# rate limiting backed by redis (partage entre workers gunicorn)
+from redis import Redis
+from config import REDIS_URL
 
-# login
-_login_attempts = {}  # ip -> (count, first_attempt_time)
-MAX_ATTEMPTS = 5
-LOGIN_WINDOW = 300  # 5min
+_redis = Redis.from_url(REDIS_URL, decode_responses=True)
 
+MAX_LOGIN_ATTEMPTS = 5
+LOGIN_WINDOW = 300
 
-def check_rate_limit(ip):
-    now = time.time()
-    if ip in _login_attempts:
-        cnt, first = _login_attempts[ip]
-        if now - first > LOGIN_WINDOW:
-            _login_attempts[ip] = (1, now)
-            return False
-        if cnt >= MAX_ATTEMPTS:
-            return True
-        _login_attempts[ip] = (cnt + 1, first)
-    else:
-        _login_attempts[ip] = (1, now)
-    return False
-
-
-def reset_rate_limit(ip):
-    _login_attempts.pop(ip, None)
-
-
-# api rate limit
-_api_hits = {}  # ip -> (count, window_start)
 API_LIMIT = 30
 API_WINDOW = 60
 
 
+def _hit(key, limit, window):
+    # fenetre fixe: TTL pose uniquement au premier increment du cycle
+    count = _redis.incr(key)
+    if count == 1:
+        _redis.expire(key, window)
+    return count > limit
+
+
+def check_rate_limit(ip):
+    return _hit(f"ratelimit:login:{ip}", MAX_LOGIN_ATTEMPTS, LOGIN_WINDOW)
+
+
+def reset_rate_limit(ip):
+    _redis.delete(f"ratelimit:login:{ip}")
+
+
 def check_api_rate(ip, limit=API_LIMIT, window=API_WINDOW):
-    now = time.time()
-    if ip not in _api_hits:
-        _api_hits[ip] = (1, now)
-        return False
-    cnt, start = _api_hits[ip]
-    if now - start > window:
-        _api_hits[ip] = (1, now)
-        return False
-    if cnt >= limit:
-        return True
-    _api_hits[ip] = (cnt + 1, start)
-    return False
+    return _hit(f"ratelimit:api:{ip}", limit, window)

@@ -72,15 +72,25 @@ def apply_session_lifetime():
         app.permanent_session_lifetime = timedelta(seconds=DEFAULT_SESSION_LIFETIME)
 
 
-# CORS pour les tablettes Electron (routes /api/ uniquement)
+# CORS /api/* pour l'Electron (cookies de session autorises)
+def _apply_cors_headers(resp):
+    origin = request.headers.get('Origin')
+    if origin:
+        # Avec credentials, le browser interdit Allow-Origin: *
+        resp.headers['Access-Control-Allow-Origin'] = origin
+        resp.headers['Access-Control-Allow-Credentials'] = 'true'
+        resp.headers['Vary'] = 'Origin'
+    else:
+        resp.headers['Access-Control-Allow-Origin'] = '*'
+    resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
+    resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRF-Token'
+    resp.headers['Access-Control-Max-Age'] = '3600'
+
+
 @app.after_request
 def handle_cors(resp):
     if request.path.startswith('/api/'):
-        origin = request.headers.get('Origin', '*')
-        resp.headers['Access-Control-Allow-Origin'] = origin
-        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRF-Token'
-        resp.headers['Access-Control-Max-Age'] = '3600'
+        _apply_cors_headers(resp)
     return resp
 
 
@@ -89,11 +99,7 @@ def handle_preflight():
     if request.method == 'OPTIONS' and request.path.startswith('/api/'):
         from flask import make_response
         resp = make_response()
-        origin = request.headers.get('Origin', '*')
-        resp.headers['Access-Control-Allow-Origin'] = origin
-        resp.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, DELETE, OPTIONS'
-        resp.headers['Access-Control-Allow-Headers'] = 'Content-Type, X-CSRF-Token'
-        resp.headers['Access-Control-Max-Age'] = '3600'
+        _apply_cors_headers(resp)
         return resp
 
 
